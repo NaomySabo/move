@@ -8,9 +8,11 @@ pub mod publish;
 pub mod run;
 pub mod test;
 pub mod view;
+pub mod fuzzer;
 
 pub use doctor::*;
 pub use publish::*;
 pub use run::*;
 pub use test::*;
 pub use view::*;
+pub use fuzzer::*;

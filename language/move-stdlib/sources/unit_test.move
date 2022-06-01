@@ -1,4 +1,3 @@
-#[test_only]
 /// Module providing testing functionality. Only included for tests.
 module std::unit_test {
     /// Return a `num_signers` number of unique signer values. No ordering or

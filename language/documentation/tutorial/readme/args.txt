@@ -1,0 +1,6 @@
+## Arg files can have comments!
+package build
+sandbox publish
+## sandbox run sources/test_script.move --signers 0xf -v
+## sandbox run sources/fuzz_tests.move --signers 0xf -v
+move sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xf -v publish

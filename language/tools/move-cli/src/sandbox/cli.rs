@@ -141,6 +141,17 @@ pub enum SandboxCommand {
         #[clap(subcommand)]
         cmd: GenerateCommand,
     },
+    #[clap(name = "fuzz")]
+    Fuzzer {
+        // Use an ephemeral directory to serve as the testing workspace.
+        // By default, the directory containing the `args.txt` will be the workspace.
+        #[clap(long = "use-temp-dir")]
+        use_temp_dir: bool,
+        // Show coverage information after tests are done.
+        // By default, coverage will not be tracked nor shown.
+        // #[clap(long = "track-cov")]
+        // track_cov: bool,
+    }
 }
 
 #[derive(Parser)]
@@ -287,6 +298,11 @@ impl SandboxCommand {
                     .prepare_state(storage_dir)?;
                 handle_generate_commands(cmd, &state)
             }
+            SandboxCommand::Fuzzer {use_temp_dir} => sandbox::commands::fuzzer(
+                &move_args.package_path,
+                &std::env::current_exe()?,
+                *use_temp_dir,
+            ),
         }
     }
 }
