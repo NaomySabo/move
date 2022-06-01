@@ -26,7 +26,10 @@ use std::{
     process::Command,
 };
 use tempfile::tempdir;
-
+use move_binary_format::internals::ModuleIndex;
+use move_binary_format::file_format::SignatureToken::Signer;
+use move_binary_format::file_format::SignatureToken::Reference;
+use move_binary_format::file_format::SignatureToken::U64;
 /// Basic datatest testing framework for the CLI. The `run_one` entrypoint expects
 /// an `args.txt` file with arguments that the `move` binary understands (one set
 /// of arguments per line). The testing framework runs the commands, compares the
@@ -51,6 +54,41 @@ const MOVE_VM_TRACING_ENV_VAR_NAME: &str = "MOVE_VM_TRACE";
 /// if --track-cov is set. If --track-cov is not set, then no trace file will
 /// be produced.
 const DEFAULT_TRACE_FILE: &str = "trace";
+
+pub fn fuzz_func(
+    module: String,
+    func_name: String, 
+    parameters: Vec<move_binary_format::file_format::SignatureToken>
+) -> Vec<String> {
+    println!("function is: {} {}", func_name, module);
+    let mut tests = Vec::new();
+    let mut t : String = module.to_owned() +  "::" + &func_name + "(";
+
+    for (i, p) in parameters.iter().enumerate() {
+
+        if p == &Reference(Box::new(Signer)) {
+            // tests.push(std::string::String::from("let account: Signer = 0xabcde;"));
+            t += "&account";
+            if i != parameters.len() - 1 {
+                t+= ","
+            }
+        } else if p == &U64 {
+            t += "1345";
+            if i != parameters.len() - 1 {
+                t+= ","
+            }
+        }
+    }
+    t += ");";
+    tests.push(std::string::String::from(t));
+
+    return tests;
+}
+
+fn print_type_of<T>(_: &T) -> &str {
+    println!("{}", std::any::type_name::<T>());
+    return std::any::type_name::<T>();
+}
 
 fn collect_coverage(
     trace_file: &Path,
@@ -92,6 +130,76 @@ fn collect_coverage(
         .to_unified_exec_map()
         .into_coverage_map_with_modules(filter);
 
+
+
+    let path = "coverage_map";
+    let mut output = File::create(path)?;
+    write!(output, "{:#?}", coverage_map);   
+    // println!("{:#?}", coverage_map);
+    // let file_name: String = "/readme/coverage_map".to_owned();
+    // let stdout = String::from_utf8(coverage_map).unwrap();
+    // fs::write(file_name, stdout)
+    //     .expect("Failed to write to file");
+
+    let mut output = File::create("fuzz_tests.move")?;
+    writeln!(output, "{}", "script {").expect("Failed to begin writing to test suite");
+    let mut tests: Vec<std::string::String> = Vec::new();
+    let mut is_signer: bool = false;
+
+
+    for (mod_name, info) in &coverage_map.compiled_modules {
+        if !mod_name.contains("dependencies") {
+            println!("name {:#?}", mod_name);
+
+            // Import the modules to be fuzzed in the test script
+            for m in &info.module_handles {
+                let addr = info.address_identifiers[m.address.into_index()];
+                let name = &info.identifiers[m.name.into_index()];
+                writeln!(output, "use 0x{}::{};", addr, name).expect("Failed to write imports to test suite");
+            }
+
+            for func in &info.function_handles {
+                // Obtain the function name from the coverage map
+                let name_idx = func.name.into_index();
+                let func_name: String = info.identifiers[name_idx].as_str().to_owned();
+
+                // Obtain the function signature from the coverage map
+                let param_idx = func.parameters.into_index();
+                let parameters = &info.signatures[param_idx].0;
+                for p in parameters {
+                    if p == &Reference(Box::new(Signer)) {
+                        is_signer = true;
+                    }
+                }
+
+                let mod_idx = func.module.into_index();
+                let id_idx = info.module_handles[mod_idx].name.into_index();
+                let module: String = info.identifiers[id_idx].as_str().to_owned();
+
+                let func_tests = fuzz_func(module, func_name, parameters.to_vec());
+                for t in func_tests {
+                    tests.push(std::string::String::from(t))
+                }  
+            }
+        }    
+    }
+
+    // If there is a signer, need to pass signer as an arguement on the command line, 
+    // and must be a test script fun parameter
+    // For now assuming just one signer 
+    if is_signer {
+        writeln!(output, "{}", "fun test_script(account: signer) {").expect("Failed to write test_script signature");
+    } else {
+        writeln!(output, "{}", "fun test_script() {").expect("Failed to write test_script signature");
+    }
+
+    for t in tests {
+        writeln!(output, "{}", t).expect("Failed to write function test to test suite");
+    }
+    writeln!(output, "{}", "}").expect("Failed to write closing brackets to test suite");
+    writeln!(output, "{}", "}").expect("Failed to write closing brackets to test suite");
+
+    // println!("{:#?}", coverage_map);
     Ok(coverage_map)
 }
 
@@ -168,7 +276,7 @@ pub fn run_one(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
-    track_cov: bool,
+    // track_cov: bool,
 ) -> anyhow::Result<Option<ExecCoverageMapWithModules>> {
     let args_file = io::BufReader::new(File::open(args_path)?).lines();
     let cli_binary_path = cli_binary.canonicalize()?;
@@ -212,11 +320,7 @@ pub fn run_one(
     let mut output = "".to_string();
 
     // always use the absolute path for the trace file as we may change dirs in the process
-    let trace_file = if track_cov {
-        Some(wks_dir.canonicalize()?.join(DEFAULT_TRACE_FILE))
-    } else {
-        None
-    };
+    let trace_file = Some(wks_dir.canonicalize()?.join(DEFAULT_TRACE_FILE));
 
     // Disable colors in error reporting from the Move compiler
     env::set_var(COLOR_MODE_ENV_VAR, "NONE");
@@ -281,15 +385,19 @@ pub fn run_one(
             if trace_path.exists() {
                 Some(collect_coverage(trace_path, &build_output)?)
             } else {
-                eprintln!(
-                    "Trace file {:?} not found: coverage is only available with at least one `run` \
-                    command in the args.txt (after a `clean`, if there is one)",
-                    trace_path
-                );
-                None
+                // eprintln!(
+                //     "Trace file {:?} not found: coverage is only available with at least one `run` \
+                //     command in the args.txt (after a `clean`, if there is one)",
+                //     trace_path
+                // );
+                // None
+                let file_path = PathBuf::from(trace_path);
+                std::fs::write(file_path, "");
+                Some(collect_coverage(trace_path, &build_output)?)
             }
         }
     };
+    // println!("cov info {:#?}", cov_info);
 
     // post-test cleanup and cleanup checks
     // check that the test command didn't create a src dir
@@ -335,6 +443,7 @@ pub fn run_one(
     }
 
     let expected_output = fs::read_to_string(exp_path).unwrap_or_else(|_| "".to_string());
+
     if expected_output != output {
         anyhow::bail!(
             "Expected output differs from actual output:\n{}",
@@ -345,11 +454,10 @@ pub fn run_one(
     }
 }
 
-pub fn run_all(
+pub fn fuzzer(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
-    track_cov: bool,
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
@@ -359,8 +467,8 @@ pub fn run_all(
     for entry in find_filenames(&[args_path], |fpath| {
         fpath.file_name().expect("unexpected file entry path") == TEST_ARGS_FILENAME
     })? {
-        println!("{}", &entry);
-        match run_one(Path::new(&entry), cli_binary, use_temp_dir, track_cov) {
+        // println!("{}", &entry);
+        match run_one(Path::new(&entry), cli_binary, use_temp_dir) {
             Ok(cov_opt) => {
                 test_passed = test_passed.checked_add(1).unwrap();
                 if let Some(cov) = cov_opt {
@@ -380,15 +488,13 @@ pub fn run_all(
     }
 
     // show coverage information if requested
-    if track_cov {
-        let mut summary_writer: Box<dyn Write> = Box::new(io::stdout());
-        for (_, module_summary) in cov_info.into_module_summaries() {
-            module_summary.summarize_human(&mut summary_writer, true)?;
-        }
+    let mut summary_writer: Box<dyn Write> = Box::new(io::stdout());
+    for (_, module_summary) in cov_info.into_module_summaries() {
+        module_summary.summarize_human(&mut summary_writer, true)?;
     }
+
 
     Ok(())
 }
 
-
-
+// module summary has the function names, lines covered out of total lines
