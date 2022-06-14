@@ -5,6 +5,5 @@ fun test_script(account: signer) {
 Test::publish(&account);
 Test::unpublish(&account);
 Test::write(&account,1345);
-Signer::address_of(&account);
 }
 }

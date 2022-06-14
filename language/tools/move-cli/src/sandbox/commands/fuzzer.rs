@@ -1,7 +1,7 @@
 // Copyright (c) The Diem Core Contributors
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
-
+use std::collections::VecDeque;
 use crate::{sandbox::utils::module, DEFAULT_BUILD_DIR, DEFAULT_STORAGE_DIR};
 
 use move_command_line_common::{
@@ -30,6 +30,9 @@ use move_binary_format::internals::ModuleIndex;
 use move_binary_format::file_format::SignatureToken::Signer;
 use move_binary_format::file_format::SignatureToken::Reference;
 use move_binary_format::file_format::SignatureToken::U64;
+use move_binary_format::file_format::Visibility::Script;
+use move_core_types::account_address::AccountAddress;
+use move_binary_format::CompiledModule;
 /// Basic datatest testing framework for the CLI. The `run_one` entrypoint expects
 /// an `args.txt` file with arguments that the `move` binary understands (one set
 /// of arguments per line). The testing framework runs the commands, compares the
@@ -55,35 +58,55 @@ const MOVE_VM_TRACING_ENV_VAR_NAME: &str = "MOVE_VM_TRACE";
 /// be produced.
 const DEFAULT_TRACE_FILE: &str = "trace";
 
+pub struct TestTemplate {
+    mod_addr: AccountAddress,
+    mod_name: String,
+    func_name: String, 
+    params: Vec<move_binary_format::file_format::SignatureToken>
+}
+
 pub fn fuzz_func(
+    mod_addr: AccountAddress,
     module: String,
     func_name: String, 
     parameters: Vec<move_binary_format::file_format::SignatureToken>
-) -> Vec<String> {
-    println!("function is: {} {}", func_name, module);
-    let mut tests = Vec::new();
-    let mut t : String = module.to_owned() +  "::" + &func_name + "(";
+) -> String {
+    println!("function is: {} {} {}", func_name, module, mod_addr);
+    let mut t : String = "sandbox run storage/0x".to_owned() + 
+                        &mod_addr.to_string() + 
+                        "/modules/" + &module.to_string() +  
+                        &".mv ".to_owned();
+
+    let mut signer_pres = false;
+    let mut args_pres = false;
+    let mut args = Vec::new();
+    let mut module_signer = "0x1234abcd";
 
     for (i, p) in parameters.iter().enumerate() {
-
         if p == &Reference(Box::new(Signer)) {
-            // tests.push(std::string::String::from("let account: Signer = 0xabcde;"));
-            t += "&account";
-            if i != parameters.len() - 1 {
-                t+= ","
-            }
-        } else if p == &U64 {
-            t += "1345";
-            if i != parameters.len() - 1 {
-                t+= ","
+            signer_pres = true;
+        } else {
+            args_pres = true;
+            if p == &U64 {
+                args.push("12345678");
             }
         }
     }
-    t += ");";
-    tests.push(std::string::String::from(t));
 
-    return tests;
+    if signer_pres {
+        t += &("--signers ".to_owned() + &module_signer.to_string() + &" ".to_owned());
+    }
+    if args_pres {
+        t += "--args ";
+        for a in args {
+            t += &(a.to_owned() + &" ".to_owned());
+        }
+    }
+    t += "-v ";
+    t += &func_name;
+    return t;
 }
+
 
 fn print_type_of<T>(_: &T) -> &str {
     println!("{}", std::any::type_name::<T>());
@@ -91,10 +114,15 @@ fn print_type_of<T>(_: &T) -> &str {
 }
 
 fn collect_coverage(
+    args_path: &Path,
+    // TODO: we don't need to run it once to get the compiled modules,
+    // those modules are available from the OnDiskCompiledPackage
     trace_file: &Path,
     build_dir: &Path,
+    mo: &String
 ) -> anyhow::Result<ExecCoverageMapWithModules> {
     let canonical_build = build_dir.canonicalize().unwrap();
+
     let package_name = parse_move_manifest_from_file(
         &SourcePackageLayout::try_find_root(&canonical_build).unwrap(),
     )?
@@ -135,71 +163,7 @@ fn collect_coverage(
     let path = "coverage_map";
     let mut output = File::create(path)?;
     write!(output, "{:#?}", coverage_map);   
-    // println!("{:#?}", coverage_map);
-    // let file_name: String = "/readme/coverage_map".to_owned();
-    // let stdout = String::from_utf8(coverage_map).unwrap();
-    // fs::write(file_name, stdout)
-    //     .expect("Failed to write to file");
 
-    let mut output = File::create("fuzz_tests.move")?;
-    writeln!(output, "{}", "script {").expect("Failed to begin writing to test suite");
-    let mut tests: Vec<std::string::String> = Vec::new();
-    let mut is_signer: bool = false;
-
-
-    for (mod_name, info) in &coverage_map.compiled_modules {
-        if !mod_name.contains("dependencies") {
-            println!("name {:#?}", mod_name);
-
-            // Import the modules to be fuzzed in the test script
-            for m in &info.module_handles {
-                let addr = info.address_identifiers[m.address.into_index()];
-                let name = &info.identifiers[m.name.into_index()];
-                writeln!(output, "use 0x{}::{};", addr, name).expect("Failed to write imports to test suite");
-            }
-
-            for func in &info.function_handles {
-                // Obtain the function name from the coverage map
-                let name_idx = func.name.into_index();
-                let func_name: String = info.identifiers[name_idx].as_str().to_owned();
-
-                // Obtain the function signature from the coverage map
-                let param_idx = func.parameters.into_index();
-                let parameters = &info.signatures[param_idx].0;
-                for p in parameters {
-                    if p == &Reference(Box::new(Signer)) {
-                        is_signer = true;
-                    }
-                }
-
-                let mod_idx = func.module.into_index();
-                let id_idx = info.module_handles[mod_idx].name.into_index();
-                let module: String = info.identifiers[id_idx].as_str().to_owned();
-
-                let func_tests = fuzz_func(module, func_name, parameters.to_vec());
-                for t in func_tests {
-                    tests.push(std::string::String::from(t))
-                }  
-            }
-        }    
-    }
-
-    // If there is a signer, need to pass signer as an arguement on the command line, 
-    // and must be a test script fun parameter
-    // For now assuming just one signer 
-    if is_signer {
-        writeln!(output, "{}", "fun test_script(account: signer) {").expect("Failed to write test_script signature");
-    } else {
-        writeln!(output, "{}", "fun test_script() {").expect("Failed to write test_script signature");
-    }
-
-    for t in tests {
-        writeln!(output, "{}", t).expect("Failed to write function test to test suite");
-    }
-    writeln!(output, "{}", "}").expect("Failed to write closing brackets to test suite");
-    writeln!(output, "{}", "}").expect("Failed to write closing brackets to test suite");
-
-    // println!("{:#?}", coverage_map);
     Ok(coverage_map)
 }
 
@@ -276,8 +240,10 @@ pub fn run_one(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
-    // track_cov: bool,
-) -> anyhow::Result<Option<ExecCoverageMapWithModules>> {
+    mo: &str,
+) -> anyhow::Result<(Option<ExecCoverageMapWithModules>, bool)> {
+    // (Option<ExecCoverageMapWithModules>, bool)
+    // anyhow::Result<Option<(ExecCoverageMapWithModules, bool)>>
     let args_file = io::BufReader::new(File::open(args_path)?).lines();
     let cli_binary_path = cli_binary.canonicalize()?;
 
@@ -292,8 +258,8 @@ pub fn run_one(
     } else {
         None
     };
-    let wks_dir = temp_dir.as_ref().map_or(exe_dir, |t| &t.1);
-
+    let mut wks_dir = temp_dir.as_ref().map_or(exe_dir, |t| &t.1);
+   
     let storage_dir = wks_dir.join(DEFAULT_STORAGE_DIR);
     let build_output = wks_dir
         .join(DEFAULT_BUILD_DIR)
@@ -324,30 +290,10 @@ pub fn run_one(
 
     // Disable colors in error reporting from the Move compiler
     env::set_var(COLOR_MODE_ENV_VAR, "NONE");
+    let mut error_present = false;
+
     for args_line in args_file {
         let args_line = args_line?;
-
-        if let Some(external_cmd) = args_line.strip_prefix(">") {
-            let external_cmd = external_cmd.trim_start();
-            let mut cmd_iter = external_cmd.split_ascii_whitespace();
-
-            let external_program = cmd_iter.next().expect("empty external command");
-
-            let mut command = Command::new(external_program);
-            command.args(cmd_iter);
-            if let Some(work_dir) = temp_dir.as_ref() {
-                command.current_dir(&work_dir.1);
-            } else {
-                command.current_dir(exe_dir);
-            }
-            let cmd_output = command.output()?;
-
-            output += &format!("External Command `{}`:\n", external_cmd);
-            output += std::str::from_utf8(&cmd_output.stdout)?;
-            output += std::str::from_utf8(&cmd_output.stderr)?;
-
-            continue;
-        }
 
         if args_line.starts_with('#') {
             // allow comments in args.txt
@@ -362,42 +308,42 @@ pub fn run_one(
         // enable tracing in the VM by setting the env var.
         match &trace_file {
             None => {
-                // this check prevents cascading the coverage tracking flag.
-                // in particular, if
-                //   1. we run with move-cli test <path-to-args-A.txt> --track-cov, and
-                //   2. in this <args-A.txt>, there is another command: test <args-B.txt>
-                // then, when running <args-B.txt>, coverage will not be tracked nor printed
                 env::remove_var(MOVE_VM_TRACING_ENV_VAR_NAME);
             }
             Some(path) => env::set_var(MOVE_VM_TRACING_ENV_VAR_NAME, path.as_os_str()),
         }
 
         let cmd_output = cli_command_template().args(args_iter).output()?;
+
         output += &format!("Command `{}`:\n", args_line);
         output += std::str::from_utf8(&cmd_output.stdout)?;
         output += std::str::from_utf8(&cmd_output.stderr)?;
+        println!("cmd output is {:#?}", &cmd_output);
+        
+        // Check to see if any of the commands ran generated any errors
+        if std::str::from_utf8(&cmd_output.stdout)?.contains(&"error") {
+            error_present = true;
+        } else if std::str::from_utf8(&cmd_output.stderr)? != "" {
+            error_present = true;
+        }
     }
+
+    println!("erorr present is {:#?}", error_present );
+
 
     // collect coverage information
     let cov_info = match &trace_file {
         None => None,
         Some(trace_path) => {
             if trace_path.exists() {
-                Some(collect_coverage(trace_path, &build_output)?)
+                Some(collect_coverage(args_path, trace_path, &build_output, &mo.to_string() )?)
             } else {
-                // eprintln!(
-                //     "Trace file {:?} not found: coverage is only available with at least one `run` \
-                //     command in the args.txt (after a `clean`, if there is one)",
-                //     trace_path
-                // );
-                // None
                 let file_path = PathBuf::from(trace_path);
                 std::fs::write(file_path, "");
-                Some(collect_coverage(trace_path, &build_output)?)
+                Some(collect_coverage(args_path, trace_path, &build_output, &mo.to_string() )?)
             }
         }
     };
-    // println!("cov info {:#?}", cov_info);
 
     // post-test cleanup and cleanup checks
     // check that the test command didn't create a src dir
@@ -424,7 +370,7 @@ pub fn run_one(
         // clean the trace file as well if it exists
         if let Some(trace_path) = &trace_file {
             if trace_path.exists() {
-                fs::remove_file(trace_path)?;
+                // fs::remove_file(trace_path)?;
             }
         }
     }
@@ -439,7 +385,7 @@ pub fn run_one(
     let exp_path = args_path.with_extension(EXP_EXT);
     if update_baseline {
         fs::write(exp_path, &output)?;
-        return Ok(cov_info);
+        return Ok((cov_info, error_present));
     }
 
     let expected_output = fs::read_to_string(exp_path).unwrap_or_else(|_| "".to_string());
@@ -450,36 +396,313 @@ pub fn run_one(
             format_diff(expected_output, output)
         )
     } else {
-        Ok(cov_info)
+        Ok((cov_info, error_present))
     }
+}
+
+pub fn start_fuzz(
+    exe_dir: &Path,
+    cli_binary: &Path,
+    use_temp_dir: bool,
+    mo: &str,
+) -> Result<Vec<TestTemplate>, anyhow::Error> {
+// HashMap<std::string::String, CompiledModule> {
+
+    let cli_binary_path = cli_binary.canonicalize()?;
+
+    let temp_dir = if use_temp_dir {
+        // symlink everything in the exe_dir into the temp_dir
+        let dir = tempdir()?;
+        let padded_dir = copy_deps(dir.path(), exe_dir)?;
+        simple_copy_dir(&padded_dir, exe_dir)?;
+        Some((dir, padded_dir))
+    } else {
+        None
+    };
+    let wks_dir = temp_dir.as_ref().map_or(exe_dir, |t| &t.1);
+
+
+    let storage_dir = wks_dir.join(DEFAULT_STORAGE_DIR);
+    let build_output = wks_dir
+        .join(DEFAULT_BUILD_DIR)
+        .join(CompiledPackageLayout::Root.path());
+
+    // template for preparing a cli command
+    let cli_command_template = || {
+        let mut command = Command::new(cli_binary_path.clone());
+        if let Some(work_dir) = temp_dir.as_ref() {
+            command.current_dir(&work_dir.1);
+        } else {
+            command.current_dir(exe_dir);
+        }
+        command
+    };
+
+    if storage_dir.exists() || build_output.exists() {
+        // need to clean before testing
+        cli_command_template()
+            .arg("sandbox")
+            .arg("clean")
+            .output()?;
+    }
+    let mut output = "".to_string();
+
+    // always use the absolute path for the trace file as we may change dirs in the process
+    let trace_file = Some(wks_dir.canonicalize()?.join(DEFAULT_TRACE_FILE));
+    // match &trace_file {
+    //     Some(path) => env::set_var(MOVE_VM_TRACING_ENV_VAR_NAME, path.as_os_str()),
+    // }
+    // env::set_var(MOVE_VM_TRACING_ENV_VAR_NAME, path.as_os_str());
+
+    // Disable colors in error reporting from the Move compiler
+    env::set_var(COLOR_MODE_ENV_VAR, "NONE");
+
+    cli_command_template().arg("package").arg("build").output()?;
+    cli_command_template().arg("sandbox").arg("publish").output()?;
+    let mut tests: Vec<TestTemplate> = Vec::new();
+
+    let cov_info = match &trace_file {
+        None => None,
+        Some(trace_path) => {
+            let file_path = PathBuf::from(trace_path);
+            std::fs::write(file_path, "");
+
+            let canonical_build = &build_output.canonicalize().unwrap();
+            let package_name = parse_move_manifest_from_file(
+                &SourcePackageLayout::try_find_root(&canonical_build).unwrap(),
+            )?.package.name.to_string();
+
+            let pkg = OnDiskCompiledPackage::from_path(
+                &&build_output
+                    .join(package_name)
+                    .join(CompiledPackageLayout::BuildInfo.path()),
+            )?
+            .into_compiled_package()?;
+            let src_modules = pkg
+                .all_modules()
+                .map(|unit| {
+                    let absolute_path = path_to_string(&unit.source_path.canonicalize()?)?;
+                    Ok((absolute_path, module(&unit.unit)?.clone()))
+                })
+                .collect::<anyhow::Result<HashMap<_, _>>>()?;
+                // OK(&src_modules);
+            // return src_modules;
+            for (entry, info) in &src_modules {
+                // let module_id = module.self_id();
+                if !entry.contains("dependencies") {        
+                    // Import the modules to be fuzzed in the test script
+                    for f_def in &info.function_defs {
+                        if f_def.visibility == Script {
+                            // Obtain the function name from the coverage map
+                            let func = &info.function_handles[f_def.function.into_index()];
+                            let name_idx = func.name.into_index();
+                            let func_name: String = info.identifiers[name_idx].as_str().to_owned();
+        
+                            // Obtain the function signature from the coverage map
+                            let param_idx = func.parameters.into_index();
+                            let parameters = &info.signatures[param_idx].0;
+        
+                            let mod_idx = func.module.into_index();
+                            let id_idx = info.module_handles[mod_idx].name.into_index();
+                            let module: String = info.identifiers[id_idx].as_str().to_owned();
+                            
+                            let addr_idx = info.module_handles[mod_idx].address.into_index();
+                            let mod_addr = info.address_identifiers[addr_idx];
+
+                            let mut test = TestTemplate {
+                                mod_addr: mod_addr,
+                                mod_name: module,
+                                func_name: func_name, 
+                                params: parameters.to_vec()
+                            };
+                            tests.push(test)
+                        }
+                }
+          
+                }
+            }
+            Some(trace_path)
+        }
+    };
+
+    // post-test cleanup and cleanup checks
+    // run the clean command to ensure that temporary state is cleaned up
+    cli_command_template().arg("sandbox").arg("clean").output()?;
+
+    // check that build and storage was deleted
+    assert!(
+        !storage_dir.exists(),
+        "`move clean` failed to eliminate {} directory",
+        DEFAULT_STORAGE_DIR
+    );
+    assert!(
+        !build_output.exists(),
+        "`move clean` failed to eliminate {} directory",
+        DEFAULT_BUILD_DIR
+    );
+
+    // release the temporary workspace explicitly
+    if let Some((t, _)) = temp_dir {
+        t.close()?;
+    }
+
+    Ok(tests)
+    // // OK(&src_modules)
+   
+}
+
+pub fn fuzz_inputs(
+    f: &TestTemplate,
+    c: u64
+) -> Result<String, anyhow::Error> {
+
+    let path = format!("test{}", c);
+    let mut output = File::create(&path)?;
+
+    // writeln!(output, "{}", "package build").expect("Failed to write to args file");
+    writeln!(output, "{}", "sandbox publish").expect("Failed to write to args file");
+   let mut t : String = "sandbox run storage/0x".to_owned() + 
+                        &f.mod_addr.to_string() + 
+                        "/modules/" + &f.mod_name.to_string() +  
+                        &".mv ".to_owned();
+
+    let mut signer_pres = false;
+    let mut args_pres = false;
+    let mut args = Vec::new();
+    let mut module_signer = "0x1234abcd";
+
+    for (i, p) in f.params.iter().enumerate() {
+        if p == &Reference(Box::new(Signer)) {
+            signer_pres = true;
+        } else {
+            args_pres = true;
+            if p == &U64 {
+                args.push("12345678");
+            }
+        }
+    }
+
+    if signer_pres {
+        t += &("--signers ".to_owned() + &module_signer.to_string() + &" ".to_owned());
+    }
+    if args_pres {
+        t += "--args ";
+        for a in args {
+            t += &(a.to_owned() + &" ".to_owned());
+        }
+    }
+    t += "-v ";
+    t += &f.func_name;
+
+    writeln!(output, "{}", t).expect("Failed to write to args file");
+    return Ok(path);
+
+}
+
+pub fn move_tests(test_path: &String, folder_type: String) -> Result<String, anyhow::Error> {
+    let mut folder = "tests-error/";
+    if (folder_type == "RAN") {
+        folder = "tests-ran/";
+    }
+
+    let mut test_name = "fuzz-tests/".to_owned() + &folder.to_owned() + &test_path.to_owned();
+    let mut exp_name = "fuzz-tests/".to_owned() + &folder.to_owned() + &test_path.to_owned() + &".exp".to_owned();
+    let exp_path = test_path.to_owned() + &".exp".to_owned();
+    
+    // Create a file in the error folder to copy the test to
+    File::create(&test_name)?;
+    File::create(&exp_name)?;
+
+    // Copy the test and corresponding exp file to the tests-error directory
+    fs::copy(&test_path, &test_name)?;
+    fs::copy(&exp_path, &exp_name)?;
+
+    // Delete the orginal test and exp file
+    fs::remove_file(&test_path)?;
+    fs::remove_file(&exp_path)?;
+
+    return Ok(exp_path);
 }
 
 pub fn fuzzer(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
+    // This is the name of the module to be tested
+    mo: &String
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
     let mut cov_info = ExecCoverageMapWithModules::empty();
 
-    // find `args.txt` and iterate over them
-    for entry in find_filenames(&[args_path], |fpath| {
-        fpath.file_name().expect("unexpected file entry path") == TEST_ARGS_FILENAME
-    })? {
-        // println!("{}", &entry);
-        match run_one(Path::new(&entry), cli_binary, use_temp_dir) {
-            Ok(cov_opt) => {
-                test_passed = test_passed.checked_add(1).unwrap();
-                if let Some(cov) = cov_opt {
-                    cov_info.merge(cov);
-                }
-            }
-            Err(ex) => eprintln!("Test {} failed with error: {}", entry, ex),
-        }
-        test_total = test_total.checked_add(1).unwrap();
+
+    // Create a directory to store the output tests of our fuzzer
+    let fuzz_path = Path::new("fuzz-tests");
+    fs::create_dir(fuzz_path);
+    if let Some(p) = fuzz_path.parent() { fs::create_dir_all(p)? };
+
+    // Create a subdirectory for tests that invoke errors in the target program
+    let error_path = Path::new("fuzz-tests/tests-error");
+    fs::create_dir(error_path);
+    if let Some(p) = error_path.parent() { fs::create_dir_all(p)? };
+
+    // Create a subdirectory for tests that have been run
+    let ran_path = Path::new("fuzz-tests/tests-ran");
+    fs::create_dir(ran_path);
+    if let Some(p) = ran_path.parent() { fs::create_dir_all(p)? };
+   
+    // Returns an array of function templates (module name, function name, parameters and module address)
+    let template = start_fuzz(args_path, cli_binary, use_temp_dir, mo).unwrap();
+    let mut count = 0;
+    let mut test_paths: Vec<String> = Vec::new();
+
+    // For each of the eligible functions in the library, push an initial test for it to test_paths, 
+    // from which we will form our queue
+    for func in template.iter() {
+        let path = fuzz_inputs(&func, count).unwrap();
+        test_paths.push(path);
+        count = count + 1;
     }
-    println!("{} / {} test(s) passed.", test_passed, test_total);
+
+    // This queue holds the names of the test files. Tests will be popped from this queue, ran, 
+    // and if they receive positive feedback, then a mutated version will be pushed to the back 
+    // of the queue. Once ran, all tests will be moved to the "used" test directory under the fuzz-tests
+    // folder that is generated when running the fuzz cli command.
+    let mut deque = VecDeque::from(test_paths);
+
+    while deque.len() != 0 {
+        match deque.pop_front() {
+            Some(test_path)   => {
+                match run_one(Path::new(&("./".to_owned() + &test_path)), cli_binary, use_temp_dir, mo) {
+                    Ok(tuple) => {
+                        test_passed = test_passed.checked_add(1).unwrap();
+  
+                        if let Some(cov) = tuple.0 {
+                            cov_info.merge(cov);
+                        }
+
+                        let is_error = tuple.1;
+                        if is_error {
+                            //move this test to the error folder
+                            move_tests(&test_path, "ERROR".to_string());
+                        } else {
+                            // mutate test and push new version to the queue
+
+
+                            // move this old test to the "ran" folder
+                            move_tests(&test_path, "RAN".to_string());
+                        }
+
+                    }
+                    Err(ex) => eprintln!("Test {} failed with error: {}", test_path, ex),
+                }
+                test_total = test_total.checked_add(1).unwrap();
+                println!("{} / {} test(s) passed.", test_passed, test_total);
+            },
+            None => println!("No test found."),
+        }
+    }
+
 
     // if any test fails, bail
     let test_failed = test_total.checked_sub(test_passed).unwrap();
@@ -493,8 +716,7 @@ pub fn fuzzer(
         module_summary.summarize_human(&mut summary_writer, true)?;
     }
 
-
     Ok(())
 }
 
-// module summary has the function names, lines covered out of total lines
+//module summary has the function names, lines covered out of total lines

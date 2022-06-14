@@ -9,7 +9,7 @@ module 0x2::Test {
     }
 
     public(script) fun write(account: &signer, i: u64) acquires Resource {
-        borrow_global_mut<Resource>(Signer::address_of(account)).i = i;
+        borrow_global_mut<Resource>(Signer::address_of(account)).i = borrow_global_mut<Resource>(Signer::address_of(account)).i + i;
     }
 
     public(script) fun unpublish(account: &signer) acquires Resource {

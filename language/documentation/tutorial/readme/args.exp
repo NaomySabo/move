@@ -1,12 +1,1 @@
-Command `package build`:
-INCLUDING DEPENDENCY MoveNursery
-INCLUDING DEPENDENCY MoveStdlib
-BUILDING readme1
 Command `sandbox publish`:
-Command `move sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xf -v publish`:
-error: Found argument 'move' which wasn't expected, or isn't valid in this context
-
-USAGE:
-    move [OPTIONS] <SUBCOMMAND>
-
-For more information try --help

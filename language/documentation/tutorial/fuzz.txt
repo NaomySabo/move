@@ -1,0 +1,5 @@
+package build
+sandbox publish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x1234abcd -v publish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x1234abcd -v unpublish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x1234abcd --args 12345678 -v write
