@@ -143,6 +143,8 @@ pub enum SandboxCommand {
         // By default, coverage will not be tracked nor shown.
         // #[clap(long = "track-cov")]
         // track_cov: bool,
+        #[clap(name = "module", parse(try_from_str))]
+        module: String,
     }
 }
 
@@ -190,6 +192,8 @@ impl SandboxCommand {
         move_args: &Move,
         storage_dir: &Path,
     ) -> Result<()> {
+        // println!("ARGS {:#?}", move_args);
+
         match self {
             SandboxCommand::Publish {
                 no_republish,
@@ -283,10 +287,11 @@ impl SandboxCommand {
                     .prepare_state(storage_dir)?;
                 handle_generate_commands(cmd, &state)
             }
-            SandboxCommand::Fuzzer {use_temp_dir} => sandbox::commands::fuzzer(
+            SandboxCommand::Fuzzer {use_temp_dir, module} => sandbox::commands::fuzzer(
                 &move_args.package_path,
                 &std::env::current_exe()?,
                 *use_temp_dir,
+                &module
             ),
         }
     }
