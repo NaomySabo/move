@@ -20,25 +20,25 @@ use std::{
 
 pub type FunctionCoverage = BTreeMap<u64, u64>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CoverageMap {
     pub exec_maps: BTreeMap<String, ExecCoverageMap>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModuleCoverageMap {
     pub module_addr: AccountAddress,
     pub module_name: Identifier,
     pub function_maps: BTreeMap<Identifier, FunctionCoverage>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExecCoverageMap {
     pub exec_id: String,
     pub module_maps: BTreeMap<(AccountAddress, Identifier), ModuleCoverageMap>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecCoverageMapWithModules {
     pub module_maps: BTreeMap<(String, AccountAddress, Identifier), ModuleCoverageMap>,
     pub compiled_modules: BTreeMap<String, CompiledModule>,
