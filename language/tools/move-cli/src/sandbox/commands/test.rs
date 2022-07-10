@@ -95,7 +95,7 @@ fn collect_coverage(
     Ok(coverage_map)
 }
 
-fn determine_package_nest_depth(
+pub(crate) fn determine_package_nest_depth(
     resolution_graph: &ResolvedGraph,
     pkg_dir: &Path,
 ) -> anyhow::Result<usize> {
@@ -109,7 +109,7 @@ fn determine_package_nest_depth(
     Ok(depth)
 }
 
-fn pad_tmp_path(tmp_dir: &Path, pad_amount: usize) -> anyhow::Result<PathBuf> {
+pub(crate) fn pad_tmp_path(tmp_dir: &Path, pad_amount: usize) -> anyhow::Result<PathBuf> {
     let mut tmp_dir = tmp_dir.to_path_buf();
     for i in 0..pad_amount {
         tmp_dir.push(format!("{}", i));
@@ -123,7 +123,7 @@ fn pad_tmp_path(tmp_dir: &Path, pad_amount: usize) -> anyhow::Result<PathBuf> {
 // mode) and then calculate the nesting under `tmp_dir` the we need to copy the root package so
 // that it, and all its dependencies reside under `tmp_dir` with the same paths as in the original
 // package manifest.
-fn copy_deps(tmp_dir: &Path, pkg_dir: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn copy_deps(tmp_dir: &Path, pkg_dir: &Path) -> anyhow::Result<PathBuf> {
     // Sometimes we run a test that isn't a package for metatests so if there isn't a package we
     // don't need to nest at all.
     let package_resolution = match (BuildConfig {
@@ -148,7 +148,7 @@ fn copy_deps(tmp_dir: &Path, pkg_dir: &Path) -> anyhow::Result<PathBuf> {
     Ok(tmp_dir)
 }
 
-fn simple_copy_dir(dst: &Path, src: &Path) -> io::Result<()> {
+pub(crate) fn simple_copy_dir(dst: &Path, src: &Path) -> io::Result<()> {
     for entry in fs::read_dir(src)? {
         let src_entry = entry?;
         let src_entry_path = src_entry.path();
