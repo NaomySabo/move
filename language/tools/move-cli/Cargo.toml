@@ -24,8 +24,10 @@ itertools = "0.10.0"
 bcs = "0.1.2"
 queues = "1.0.2"
 priority-queue = "1.2.2"
-rand = "0.8.4"
 eventual = "0.1.7"
+lazy_static = "1.4.0"
+coinflip = "0.1.1"
+rand = "0.8.5"
 move-bytecode-verifier = { path = "../../move-bytecode-verifier" }
 move-disassembler = { path = "../move-disassembler" }
 move-command-line-common = { path = "../../move-command-line-common" }
