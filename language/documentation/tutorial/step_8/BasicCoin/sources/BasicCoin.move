@@ -1,6 +1,7 @@
 /// This module defines a minimal and generic Coin and Balance.
 module NamedAddr::BasicCoin {
-    use std::signer;
+    use Std::Errors;
+    use Std::Signer;
 
     /// Error codes
     const ENOT_MODULE_OWNER: u64 = 0;
@@ -18,20 +19,20 @@ module NamedAddr::BasicCoin {
 
     /// Publish an empty balance resource under `account`'s address. This function must be called before
     /// minting or transferring to the account.
-    public fun publish_balance<CoinType>(account: &signer) {
+    public(script) fun publish_balance<CoinType>(account: &signer) {
         let empty_coin = Coin<CoinType> { value: 0 };
-        assert!(!exists<Balance<CoinType>>(signer::address_of(account)), EALREADY_HAS_BALANCE);
-        move_to(account, Balance<CoinType> { coin: empty_coin });
+        assert!(!exists<Balance<CoinType>>(Signer::address_of(account)), Errors::already_published(EALREADY_HAS_BALANCE));
+        move_to(account, Balance<CoinType> { coin:  empty_coin });
     }
 
     /// Mint `amount` tokens to `mint_addr`. This method requires a witness with `CoinType` so that the
     /// module that owns `CoinType` can decide the minting policy.
-    public fun mint<CoinType: drop>(mint_addr: address, amount: u64, _witness: CoinType) acquires Balance {
+    public(script) fun mint<CoinType: drop>(mint_addr: address, amount: u64, _witness: CoinType) acquires Balance {
         // Deposit `total_value` amount of tokens to mint_addr's balance
         deposit(mint_addr, Coin<CoinType> { value: amount });
     }
 
-    public fun balance_of<CoinType>(owner: address): u64 acquires Balance {
+    public(script) fun balance_of<CoinType>(owner: address): u64 acquires Balance {
         borrow_global<Balance<CoinType>>(owner).coin.value
     }
 
@@ -42,15 +43,15 @@ module NamedAddr::BasicCoin {
 
     /// Transfers `amount` of tokens from `from` to `to`. This method requires a witness with `CoinType` so that the
     /// module that owns `CoinType` can decide the transferring policy.
-    public fun transfer<CoinType: drop>(from: &signer, to: address, amount: u64, _witness: CoinType) acquires Balance {
-        let from_addr = signer::address_of(from);
+    public(script) fun transfer<CoinType: drop>(from: &signer, to: address, amount: u64, _witness: CoinType) acquires Balance {
+        let from_addr = Signer::address_of(from);
         assert!(from_addr != to, EEQUAL_ADDR);
         let check = withdraw<CoinType>(from_addr, amount);
         deposit<CoinType>(to, check);
     }
 
-    spec transfer {
-        let addr_from = signer::address_of(from);
+    spec transfer{
+        let addr_from = Signer::address_of(from);
 
         let balance_from = global<Balance<CoinType>>(addr_from).coin.value;
         let balance_to = global<Balance<CoinType>>(to).coin.value;
@@ -61,7 +62,7 @@ module NamedAddr::BasicCoin {
         ensures balance_to_post == balance_to + amount;
     }
 
-    fun withdraw<CoinType>(addr: address, amount: u64) : Coin<CoinType> acquires Balance {
+    public(script) fun withdraw<CoinType>(addr: address, amount: u64) : Coin<CoinType> acquires Balance {
         let balance = balance_of<CoinType>(addr);
         assert!(balance >= amount, EINSUFFICIENT_BALANCE);
         let balance_ref = &mut borrow_global_mut<Balance<CoinType>>(addr).coin.value;
@@ -80,7 +81,7 @@ module NamedAddr::BasicCoin {
         ensures balance_post == balance - amount;
     }
 
-    fun deposit<CoinType>(addr: address, check: Coin<CoinType>) acquires Balance{
+    public(script) fun deposit<CoinType>(addr: address, check: Coin<CoinType>) acquires Balance{
         let balance = balance_of<CoinType>(addr);
         let balance_ref = &mut borrow_global_mut<Balance<CoinType>>(addr).coin.value;
         let Coin { value } = check;
