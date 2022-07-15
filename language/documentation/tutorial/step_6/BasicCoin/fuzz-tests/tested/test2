@@ -1,0 +1,3 @@
+sandbox publish
+sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 15324898428023963382 -v setup_and_mint
+sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xF8FD11A3BA95E4EE8918456C68CA179B --args 15811630699792834475 -v setup_and_mint

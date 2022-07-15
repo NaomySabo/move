@@ -1,0 +1,4 @@
+sandbox publish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xA7DCDBE3692CE95C3BC1BA1DB15C616E -v publish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xA7DCDBE3692CE95C3BC1BA1DB15C616E --args 1 -v write
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xC2B371268BC325E3C7A46919E6DC529D --args 1 -v write

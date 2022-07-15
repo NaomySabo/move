@@ -1,0 +1,125 @@
+ExecCoverageMapWithModules {
+    module_maps: {
+        (
+            "/Users/naomysabo/Desktop/move/language/documentation/tutorial/step_1/BasicCoin/build/BasicCoin/sources/BasicCoin.move",
+            0000000000000000000000000000CAFE,
+            Identifier(
+                "BasicCoin",
+            ),
+        ): ModuleCoverageMap {
+            module_addr: 0000000000000000000000000000CAFE,
+            module_name: Identifier(
+                "BasicCoin",
+            ),
+            function_maps: {
+                Identifier(
+                    "mint",
+                ): {
+                    0: 1,
+                    1: 1,
+                    2: 1,
+                    3: 1,
+                    4: 1,
+                },
+            },
+        },
+    },
+    compiled_modules: {
+        "/Users/naomysabo/Desktop/move/language/documentation/tutorial/step_1/BasicCoin/build/BasicCoin/sources/BasicCoin.move": CompiledModule {
+            version: 5,
+            self_module_handle_idx: ModuleHandleIndex(0),
+            module_handles: [
+                ModuleHandle {
+                    address: AddressIdentifierIndex(0),
+                    name: IdentifierIndex(0),
+                },
+            ],
+            struct_handles: [
+                StructHandle {
+                    module: ModuleHandleIndex(0),
+                    name: IdentifierIndex(1),
+                    abilities: [Key, ],
+                    type_parameters: [],
+                },
+            ],
+            function_handles: [
+                FunctionHandle {
+                    module: ModuleHandleIndex(0),
+                    name: IdentifierIndex(2),
+                    parameters: SignatureIndex(0),
+                    return_: SignatureIndex(1),
+                    type_parameters: [],
+                },
+            ],
+            field_handles: [],
+            friend_decls: [],
+            struct_def_instantiations: [],
+            function_instantiations: [],
+            field_instantiations: [],
+            signatures: [
+                Signature(
+                    [
+                        Signer,
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [],
+                ),
+            ],
+            identifiers: [
+                Identifier(
+                    "BasicCoin",
+                ),
+                Identifier(
+                    "Coin",
+                ),
+                Identifier(
+                    "mint",
+                ),
+                Identifier(
+                    "value",
+                ),
+            ],
+            address_identifiers: [
+                0000000000000000000000000000CAFE,
+            ],
+            constant_pool: [],
+            metadata: [],
+            struct_defs: [
+                StructDefinition {
+                    struct_handle: StructHandleIndex(0),
+                    field_information: Declared(
+                        [
+                            FieldDefinition {
+                                name: IdentifierIndex(3),
+                                signature: TypeSignature(
+                                    U64,
+                                ),
+                            },
+                        ],
+                    ),
+                },
+            ],
+            function_defs: [
+                FunctionDefinition {
+                    function: FunctionHandleIndex(0),
+                    visibility: Script,
+                    acquires_global_resources: [],
+                    code: Some(
+                        CodeUnit {
+                            locals: SignatureIndex(1),
+                            code: [
+                                ImmBorrowLoc(0),
+                                MoveLoc(1),
+                                Pack(0),
+                                MoveTo(StructDefinitionIndex(0)),
+                                Ret,
+                            ],
+                        },
+                    ),
+                },
+            ],
+        },
+    },
+}

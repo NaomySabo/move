@@ -1,0 +1,3 @@
+Command `sandbox publish`:
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/BasicCoin.mv --signers 0x887B37B71CB8C5B248D2D545BD52AFEC -v balance_of`:
+Execution failed with incorrect number of type arguments: script expected 0, but found 0
