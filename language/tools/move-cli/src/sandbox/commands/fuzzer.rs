@@ -24,6 +24,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use std::collections::HashSet;
 use sandbox::commands::test::{
     copy_deps,
     simple_copy_dir
@@ -33,7 +34,7 @@ use tempfile::tempdir;
 use move_binary_format::internals::ModuleIndex;
 use move_binary_format::file_format::SignatureToken::{Bool, Signer, U128, U8, U64, Address};
 use move_binary_format::file_format::SignatureToken::Reference;
-use move_binary_format::file_format::Visibility::Script;
+// use move_binary_format::file_format::Visibility::Script;
 use move_core_types::account_address::AccountAddress;
 use rand::distributions::{Distribution};
 use priority_queue::PriorityQueue;
@@ -289,7 +290,8 @@ pub fn run_one(
 pub fn start_fuzz(
     exe_dir: &Path,
     cli_binary: &Path,
-    use_temp_dir: bool
+    use_temp_dir: bool,
+    test_name: &str
 ) -> Result<Vec<TestTemplate>, anyhow::Error> {
 // HashMap<std::string::String, CompiledModule> {
 
@@ -372,34 +374,37 @@ pub fn start_fuzz(
             // return src_modules;
             for (entry, info) in &src_modules {
                 // let module_id = module.self_id();
-                if !entry.contains("dependencies") {
+                // println!("{:#?}", entry.clone());
+                // if !entry.contains("dependencies") {
+                // TODO: concat /
+                if entry.ends_with(test_name) {
                     // Import the modules to be fuzzed in the test script
                     for f_def in &info.function_defs {
-                        if f_def.visibility == Script {
-                            // Obtain the function name from the coverage map
-                            let func = &info.function_handles[f_def.function.into_index()];
-                            let name_idx = func.name.into_index();
-                            let func_name: String = info.identifiers[name_idx].as_str().to_owned();
+                        // if f_def.visibility == Script {
+                        // Obtain the function name from the coverage map
+                        let func = &info.function_handles[f_def.function.into_index()];
+                        let name_idx = func.name.into_index();
+                        let func_name: String = info.identifiers[name_idx].as_str().to_owned();
 
-                            // Obtain the function signature from the coverage map
-                            let param_idx = func.parameters.into_index();
-                            let parameters = &info.signatures[param_idx].0;
+                        // Obtain the function signature from the coverage map
+                        let param_idx = func.parameters.into_index();
+                        let parameters = &info.signatures[param_idx].0;
 
-                            let mod_idx = func.module.into_index();
-                            let id_idx = info.module_handles[mod_idx].name.into_index();
-                            let module: String = info.identifiers[id_idx].as_str().to_owned();
+                        let mod_idx = func.module.into_index();
+                        let id_idx = info.module_handles[mod_idx].name.into_index();
+                        let module: String = info.identifiers[id_idx].as_str().to_owned();
 
-                            let addr_idx = info.module_handles[mod_idx].address.into_index();
-                            let mod_addr = info.address_identifiers[addr_idx];
+                        let addr_idx = info.module_handles[mod_idx].address.into_index();
+                        let mod_addr = info.address_identifiers[addr_idx];
 
-                            let test = TestTemplate {
-                                mod_addr,
-                                mod_name: module,
-                                func_name,
-                                params: parameters.to_vec()
-                            };
-                            tests.push(test)
-                        }
+                        let test = TestTemplate {
+                            mod_addr,
+                            mod_name: module,
+                            func_name,
+                            params: parameters.to_vec()
+                        };
+                        tests.push(test)
+                        // }
                     }
 
                 }
@@ -459,7 +464,7 @@ pub fn fuzz_int(int_type: &SignatureToken) -> String {
     let special_nums_u64: Vec<u64> = vec![0, 1, u64::MAX-1, u64::MAX];
     let special_nums_u128: Vec<u128> = vec![0, 1, u128::MAX-1, u128::MAX];
 
-    return if coinflip::flip() {
+    if coinflip::flip() {
         // Random number generator to choose which special value is selected
         let between = rand::distributions::Uniform::from(0..4);
         let idx = between.sample(&mut rng);
@@ -471,18 +476,18 @@ pub fn fuzz_int(int_type: &SignatureToken) -> String {
         } else {
             special_nums_u128[idx].to_string()
         }
+        // Otherwise choose a random number
+    } else if int_type == &U8 {
+        let rand_num = rng.gen_range(2..u8::MAX-1);
+        rand_num.to_string()
+    } else if int_type == &U64 {
+        let rand_num = rng.gen_range(2..u64::MAX-1);
+        rand_num.to_string()
     } else {
-        if int_type == &U8 {
-            let rand_num = rng.gen_range(2..u8::MAX-1);
-            rand_num.to_string()
-        } else if int_type == &U64 {
-            let rand_num = rng.gen_range(2..u64::MAX-1);
-            rand_num.to_string()
-        } else {
-            let rand_num = rng.gen_range(2..u128::MAX-1);
-            rand_num.to_string()
-        }
+        let rand_num = rng.gen_range(2..u128::MAX-1);
+        rand_num.to_string()
     }
+
 }
 
 pub fn fuzz_inputs(
@@ -499,9 +504,6 @@ pub fn fuzz_inputs(
     let mut args = Vec::new();
 
     for (_i, p) in f.params.iter().enumerate() {
-        // // print_type_of(p);
-        // println!("{:#?}", p);
-        // println!("{:#?}", p == &Address);
 
         if p == &Reference(Box::new(Signer)) || *p == Signer {
             signer_pres = true;
@@ -586,9 +588,8 @@ pub fn fuzzer(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
-    // This is the name of the module to be tested
-    // TODO: Let user specify only one module to be tested...
-    _mo: &str
+    // This is the name of the file whose functions are to be tested
+    test_name: &str
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
@@ -614,12 +615,15 @@ pub fn fuzzer(
     if let Some(p) = ran_path.parent() { fs::create_dir_all(p)? };
 
     // Returns an array of function templates (module name, function name, parameters and module address)
-    let template = start_fuzz(args_path, cli_binary, use_temp_dir).unwrap();
+    let template = start_fuzz(args_path, cli_binary, use_temp_dir, test_name).unwrap();
+
+    // This will be used to keep track of the number of tests created
     let mut count = 0;
+
+    // This will store the file paths to any test files created
     let mut test_paths: Vec<String> = Vec::new();
 
-    // let mut signers: Vec<String> = Vec::new();
-    // signers.push(get_signer());
+    // This will keep track of any signers used so far
     let mut signers: Vec<String> = vec![get_signer()];
 
     // For each of the eligible functions in the library, push an initial test for it to test_paths, 
@@ -627,8 +631,11 @@ pub fn fuzzer(
     for func in template.iter() {
         let new_test = format!("test{}", count);
         let mut output = File::create(&new_test)?;
+
         // First line in each test should be "sandbox publish"
         writeln!(output, "sandbox publish").expect("Failed to write to args file");
+
+        // This will write some tests into our testfile
         fuzz_inputs(&func, &output, signers[0].clone()).unwrap();
         test_paths.push(new_test);
         count += 1;
@@ -650,21 +657,20 @@ pub fn fuzzer(
 
     let mut cov_info = ExecCoverageMapWithModules::empty();
     let mut covered: HashMap<String, u64> = HashMap::new();
-    let mut tests_ran: HashMap<String, bool> = HashMap::new();
+    let mut tests_ran: HashSet<String> = HashSet::new();
     // TODO: HASH SET !!!!!
-
 
 
     let mut b = 0;
     while !pq.is_empty()
-    && b < 40
+        && b < 40
     {
         b += 1;
         let seed = pq.pop();
         let clone = seed.clone();
         match seed {
             Some(test_path)   => {
-                if tests_ran.contains_key(&test_path.0) {
+                if tests_ran.contains(&test_path.0) {
                     println!("{:#?} mutated now into test {}", &test_path.0, count);
 
                     //Regardless if the test generated new coverage, mutate it and add a new version to our queue
@@ -697,7 +703,7 @@ pub fn fuzzer(
                 } else {
                     match run_one(Path::new(&("./".to_owned() + &test_path.0)), cli_binary, use_temp_dir) {
                         Ok(tuple) => {
-                            tests_ran.insert(test_path.clone().0,true);
+                            tests_ran.insert(test_path.clone().0);
 
                             test_total = test_total.checked_add(1).unwrap();
                             test_passed = test_passed.checked_add(1).unwrap();
@@ -705,7 +711,6 @@ pub fn fuzzer(
                             if let Some(cov) = tuple.0 {
                                 cov_info.merge(cov);
                             }
-                            // println!("covered {:#?}", &covered);
 
                             let is_error = tuple.1;
                             if is_error {
@@ -731,10 +736,26 @@ pub fn fuzzer(
                                                 *covered.get_mut(&mod_func).unwrap() = fn_summary.covered;
                                             }
                                         } else if fn_summary.covered > 0 {
-                                                // This means that the current test reached a function that wasn't covered before
-                                                println!("{:#?} had an error, but reached this function for the first time: {:#?}", &test_path.0, &mod_func);
-                                                covered.insert(mod_func, fn_summary.covered);
+                                            // This means that the current test reached a function that wasn't covered before
+                                            println!("{:#?} had an error, but reached this function for the first time: {:#?}", &test_path.0, &mod_func);
+                                            covered.insert(mod_func, fn_summary.covered);
                                         }
+
+                                        // match covered.entry(mod_func.clone()) {
+                                        //     std::collections::hash_map::Entry::Vacant(e) => {},
+                                        //     std::collections::hash_map::Entry::Occupied(mut e) => {
+                                        //         *e.get_mut() = fn_summary.covered;
+                                        //     }
+                                        // }
+
+                                        // if let std::collections::hash_map::Entry::Vacant(e) = covered.entry(mod_func.clone()) {
+                                        //     if fn_summary.covered > 0 {
+                                        //         // This means that the current test reached a function that wasn't covered before
+                                        //         e.insert(fn_summary.covered);
+                                        //     } else if fn_summary.covered > *covered.get(&mod_func).unwrap() {
+                                        //         *covered.get_mut(&mod_func).unwrap() = fn_summary.covered;
+                                        //     }
+                                        // }
                                     }
 
                                 }
@@ -764,20 +785,23 @@ pub fn fuzzer(
                                             }
 
                                         } else if fn_summary.covered > 0 {
-                                                // This means that the current test reached a function that wasn't covered before
-                                                new_cov = true;
-                                                covered.insert(mod_func, fn_summary.covered);
+                                            // This means that the current test reached a function that wasn't covered before
+                                            new_cov = true;
+                                            covered.insert(mod_func, fn_summary.covered);
                                         }
 
-                                        // let std::collections::hash_map::Entry::Vacant(e) = covered.entry(mod_func.clone());
-                                        // if fn_summary.covered > 0 {
-                                        //     // This means that the current test reached a function that wasn't covered before
-                                        //     new_cov = true;
-                                        //     covered.insert(mod_func, fn_summary.covered);
-                                        // } else if fn_summary.covered > *covered.get(&mod_func).unwrap() {
-                                        //     new_cov = true;
-                                        //     *covered.get_mut(&mod_func).unwrap() = fn_summary.covered;
+                                        // if let std::collections::hash_map::Entry::Vacant(e) = covered.entry(mod_func.clone()) {
+                                        //     if fn_summary.covered > 0 {
+                                        //         // This means that the current test reached a function that wasn't covered before
+                                        //         new_cov = true;
+                                        //         // covered.insert(mod_func, fn_summary.covered);
+                                        //         e.insert(fn_summary.covered);
+                                        //     } else if fn_summary.covered > *covered.get(&mod_func).unwrap() {
+                                        //         new_cov = true;
+                                        //         *covered.get_mut(&mod_func).unwrap() = fn_summary.covered;
+                                        //     }
                                         // }
+
                                     }
 
                                 }
@@ -854,6 +878,7 @@ pub fn fuzzer(
                     let mut all_covered = true;
                     for (_, module_summary) in cov_info.clone().into_module_summaries() {
                         // module_summary.summarize_human(&mut summary_writer, true)?;
+                        // println!()
                         for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
                             if !fn_summary.fn_is_native {
                                 let cov_per: f64 = fn_summary.percent_coverage();
@@ -867,23 +892,6 @@ pub fn fuzzer(
                     println!("\n");
                     if all_covered { break; }
                 }
-
-                // // If module coverage is 100%, break
-                // let mut all_covered = true;
-                // for (_, module_summary) in cov_info.clone().into_module_summaries() {
-                //     // module_summary.summarize_human(&mut summary_writer, true)?;
-                //     for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
-                //         if !fn_summary.fn_is_native {
-                //             let cov_per: f64 = fn_summary.percent_coverage();
-                //             if cov_per != 100 as f64 {
-                //                 all_covered = false
-                //             }
-                //             println!("fun {} \t\t% coverage: {:.2}", fn_name, fn_summary.percent_coverage());
-                //         }
-                //     }
-                // }
-                // println!("\n");
-                // if all_covered { break; }
             },
             None => println!("No test found."),
         }

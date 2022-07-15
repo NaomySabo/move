@@ -1,0 +1,2 @@
+sandbox publish
+sandbox run storage/0x0000000000000000000000000000CAFE/modules/BasicCoin.mv --signers 0x887B37B71CB8C5B248D2D545BD52AFEC --args 18446744073709551615 -v mint

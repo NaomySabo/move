@@ -1,0 +1,28 @@
+Command `sandbox publish`:
+Command `sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xA7DCDBE3692CE95C3BC1BA1DB15C616E -v publish`:
+Changed resource(s) under 1 address(es):
+  Changed 1 resource(s) under address A7DCDBE3692CE95C3BC1BA1DB15C616E:
+    Added type 0x2::Test::Resource: [10, 0, 0, 0, 0, 0, 0, 0] (wrote 40 bytes)
+      key 0x2::Test::Resource {
+          i: 10
+      }
+Wrote 40 bytes of resource ID's and data
+Command `sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xA7DCDBE3692CE95C3BC1BA1DB15C616E --args 1 -v write`:
+Changed resource(s) under 1 address(es):
+  Changed 1 resource(s) under address A7DCDBE3692CE95C3BC1BA1DB15C616E:
+    Changed type 0x2::Test::Resource: [11, 0, 0, 0, 0, 0, 0, 0] (wrote 40 bytes)
+         key 0x2::Test::Resource {
+-            i: 10
++            i: 11
+         }
+Wrote 40 bytes of resource ID's and data
+Command `sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0xF852DA3851CA8861CB335E46F34D91CB -v publish`:
+Changed resource(s) under 1 address(es):
+  Changed 1 resource(s) under address F852DA3851CA8861CB335E46F34D91CB:
+    Added type 0x2::Test::Resource: [10, 0, 0, 0, 0, 0, 0, 0] (wrote 40 bytes)
+      key 0x2::Test::Resource {
+          i: 10
+      }
+Wrote 40 bytes of resource ID's and data
+Command `sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x172952FCB363CFDF9B45D4595939F56D --args 1 -v write`:
+Execution failed because of a RESOURCE_DOES_NOT_EXIST error (i.e., `move_from<T>(a)`, `borrow_global<T>(a)`, or `borrow_global_mut<T>(a)` when there is no resource of type `T` at address `a`) in 00000000000000000000000000000002::Test::write at code offset 2

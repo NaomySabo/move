@@ -8,7 +8,7 @@ module NamedAddr::MyOddCoin {
 
     const ENOT_ODD: u64 = 0;
 
-    public fun setup_and_mint(account: &signer, amount: u64) {
+    public(script) fun setup_and_mint(account: &signer, amount: u64) {
         BasicCoin::publish_balance<MyOddCoin>(account);
         BasicCoin::mint<MyOddCoin>(Signer::address_of(account), amount, MyOddCoin {});
     }
