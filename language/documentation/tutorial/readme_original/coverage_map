@@ -1,78 +1,5 @@
 ExecCoverageMapWithModules {
-    module_maps: {
-        (
-            "/Users/naomysabo/Desktop/move/language/documentation/tutorial/readme/build/readme/sources/Test.move",
-            00000000000000000000000000000002,
-            Identifier(
-                "Test",
-            ),
-        ): ModuleCoverageMap {
-            module_addr: 00000000000000000000000000000002,
-            module_name: Identifier(
-                "Test",
-            ),
-            function_maps: {
-                Identifier(
-                    "publish",
-                ): {
-                    0: 32,
-                    1: 32,
-                    2: 32,
-                    3: 32,
-                    4: 30,
-                },
-                Identifier(
-                    "unpublish",
-                ): {
-                    0: 5,
-                    1: 5,
-                    2: 5,
-                    3: 1,
-                    4: 1,
-                    5: 1,
-                },
-                Identifier(
-                    "write",
-                ): {
-                    0: 17,
-                    1: 17,
-                    2: 17,
-                    3: 13,
-                    4: 13,
-                    5: 13,
-                    6: 13,
-                    7: 12,
-                    8: 12,
-                    9: 12,
-                    10: 12,
-                    11: 12,
-                    12: 12,
-                },
-            },
-        },
-        (
-            "/Users/naomysabo/Desktop/move/language/documentation/tutorial/readme/build/readme/sources/dependencies/MoveStdlib/Signer.move",
-            00000000000000000000000000000001,
-            Identifier(
-                "Signer",
-            ),
-        ): ModuleCoverageMap {
-            module_addr: 00000000000000000000000000000001,
-            module_name: Identifier(
-                "Signer",
-            ),
-            function_maps: {
-                Identifier(
-                    "address_of",
-                ): {
-                    0: 34,
-                    1: 34,
-                    2: 34,
-                    3: 34,
-                },
-            },
-        },
-    },
+    module_maps: {},
     compiled_modules: {
         "/Users/naomysabo/Desktop/move/language/documentation/tutorial/readme/build/readme/sources/Test.move": CompiledModule {
             version: 5,
@@ -206,7 +133,8 @@ ExecCoverageMapWithModules {
             function_defs: [
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
-                    visibility: Script,
+                    visibility: Public,
+                    is_entry: true,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -223,7 +151,8 @@ ExecCoverageMapWithModules {
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
-                    visibility: Script,
+                    visibility: Public,
+                    is_entry: true,
                     acquires_global_resources: [
                         StructDefinitionIndex(0),
                     ],
@@ -243,7 +172,8 @@ ExecCoverageMapWithModules {
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
-                    visibility: Script,
+                    visibility: Public,
+                    is_entry: true,
                     acquires_global_resources: [
                         StructDefinitionIndex(0),
                     ],
@@ -278,35 +208,66 @@ ExecCoverageMapWithModules {
                     address: AddressIdentifierIndex(0),
                     name: IdentifierIndex(0),
                 },
+                ModuleHandle {
+                    address: AddressIdentifierIndex(0),
+                    name: IdentifierIndex(1),
+                },
             ],
             struct_handles: [],
             function_handles: [
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(1),
+                    name: IdentifierIndex(2),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(1),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(2),
+                    name: IdentifierIndex(3),
                     parameters: SignatureIndex(2),
                     return_: SignatureIndex(1),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(3),
+                    name: IdentifierIndex(4),
                     parameters: SignatureIndex(3),
                     return_: SignatureIndex(1),
                     type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(5),
+                    parameters: SignatureIndex(5),
+                    return_: SignatureIndex(6),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(6),
+                    parameters: SignatureIndex(8),
+                    return_: SignatureIndex(9),
+                    type_parameters: [
+                        [],
+                    ],
                 },
             ],
             field_handles: [],
             friend_decls: [],
             struct_def_instantiations: [],
-            function_instantiations: [],
+            function_instantiations: [
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(3),
+                    type_parameters: SignatureIndex(1),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(4),
+                    type_parameters: SignatureIndex(1),
+                },
+            ],
             field_instantiations: [],
             signatures: [
                 Signature(
@@ -342,12 +303,36 @@ ExecCoverageMapWithModules {
                     ],
                 ),
                 Signature(
+                    [
+                        Reference(Vector(TypeParameter(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        U64,
+                    ],
+                ),
+                Signature(
                     [],
+                ),
+                Signature(
+                    [
+                        Reference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
+                        Reference(TypeParameter(0)),
+                    ],
                 ),
             ],
             identifiers: [
                 Identifier(
                     "Compare",
+                ),
+                Identifier(
+                    "Vector",
                 ),
                 Identifier(
                     "cmp_bcs_bytes",
@@ -357,6 +342,12 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "cmp_u8",
+                ),
+                Identifier(
+                    "length",
+                ),
+                Identifier(
+                    "borrow",
                 ),
             ],
             address_identifiers: [
@@ -388,16 +379,17 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(4),
                             code: [
                                 CopyLoc(0),
-                                VecLen(1),
+                                CallGeneric(0),
                                 StLoc(4),
                                 CopyLoc(1),
-                                VecLen(1),
+                                CallGeneric(0),
                                 StLoc(5),
                                 CopyLoc(4),
                                 CopyLoc(5),
@@ -428,11 +420,11 @@ ExecCoverageMapWithModules {
                                 StLoc(5),
                                 CopyLoc(0),
                                 CopyLoc(4),
-                                VecImmBorrow(1),
+                                CallGeneric(1),
                                 ReadRef,
                                 CopyLoc(1),
                                 CopyLoc(5),
-                                VecImmBorrow(1),
+                                CallGeneric(1),
                                 ReadRef,
                                 Call(2),
                                 StLoc(3),
@@ -461,6 +453,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -495,6 +488,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -592,12 +586,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
@@ -878,6 +874,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(0),
                     ],
@@ -903,6 +900,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -931,6 +929,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -946,6 +945,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(0),
                     ],
@@ -1421,131 +1421,47 @@ ExecCoverageMapWithModules {
                     ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(1),
+                    module: ModuleHandleIndex(5),
                     name: IdentifierIndex(59),
+                    parameters: SignatureIndex(5),
+                    return_: SignatureIndex(6),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(60),
                     parameters: SignatureIndex(30),
                     return_: SignatureIndex(30),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(4),
-                    name: IdentifierIndex(60),
+                    name: IdentifierIndex(61),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(31),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(61),
-                    parameters: SignatureIndex(30),
-                    return_: SignatureIndex(30),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(2),
                     name: IdentifierIndex(62),
-                    parameters: SignatureIndex(33),
-                    return_: SignatureIndex(6),
-                    type_parameters: [
-                        [Drop, Store, ],
-                    ],
+                    parameters: SignatureIndex(30),
+                    return_: SignatureIndex(30),
+                    type_parameters: [],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(1),
+                    module: ModuleHandleIndex(5),
                     name: IdentifierIndex(63),
-                    parameters: SignatureIndex(30),
-                    return_: SignatureIndex(30),
-                    type_parameters: [],
+                    parameters: SignatureIndex(6),
+                    return_: SignatureIndex(32),
+                    type_parameters: [
+                        [],
+                    ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(1),
+                    module: ModuleHandleIndex(2),
                     name: IdentifierIndex(64),
-                    parameters: SignatureIndex(30),
-                    return_: SignatureIndex(30),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(65),
-                    parameters: SignatureIndex(0),
-                    return_: SignatureIndex(34),
-                    type_parameters: [
-                        [Drop, Store, ],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(66),
-                    parameters: SignatureIndex(37),
-                    return_: SignatureIndex(15),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(67),
-                    parameters: SignatureIndex(38),
-                    return_: SignatureIndex(22),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(68),
-                    parameters: SignatureIndex(22),
-                    return_: SignatureIndex(39),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(69),
-                    parameters: SignatureIndex(37),
-                    return_: SignatureIndex(15),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(70),
-                    parameters: SignatureIndex(30),
-                    return_: SignatureIndex(30),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(71),
-                    parameters: SignatureIndex(41),
-                    return_: SignatureIndex(6),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(5),
-                    name: IdentifierIndex(72),
-                    parameters: SignatureIndex(28),
-                    return_: SignatureIndex(43),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(5),
-                    name: IdentifierIndex(73),
-                    parameters: SignatureIndex(44),
-                    return_: SignatureIndex(22),
-                    type_parameters: [
-                        [],
-                    ],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(74),
                     parameters: SignatureIndex(34),
                     return_: SignatureIndex(6),
                     type_parameters: [
@@ -1553,9 +1469,59 @@ ExecCoverageMapWithModules {
                     ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(5),
-                    name: IdentifierIndex(75),
-                    parameters: SignatureIndex(47),
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(65),
+                    parameters: SignatureIndex(30),
+                    return_: SignatureIndex(30),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(66),
+                    parameters: SignatureIndex(30),
+                    return_: SignatureIndex(30),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(67),
+                    parameters: SignatureIndex(0),
+                    return_: SignatureIndex(35),
+                    type_parameters: [
+                        [Drop, Store, ],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(68),
+                    parameters: SignatureIndex(38),
+                    return_: SignatureIndex(15),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(69),
+                    parameters: SignatureIndex(39),
+                    return_: SignatureIndex(22),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(70),
+                    parameters: SignatureIndex(22),
+                    return_: SignatureIndex(40),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(71),
+                    parameters: SignatureIndex(38),
                     return_: SignatureIndex(15),
                     type_parameters: [
                         [],
@@ -1563,7 +1529,68 @@ ExecCoverageMapWithModules {
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(72),
+                    parameters: SignatureIndex(30),
+                    return_: SignatureIndex(30),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(73),
+                    parameters: SignatureIndex(42),
+                    return_: SignatureIndex(6),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(5),
+                    name: IdentifierIndex(74),
+                    parameters: SignatureIndex(28),
+                    return_: SignatureIndex(44),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(5),
+                    name: IdentifierIndex(75),
+                    parameters: SignatureIndex(45),
+                    return_: SignatureIndex(22),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
                     name: IdentifierIndex(76),
+                    parameters: SignatureIndex(35),
+                    return_: SignatureIndex(6),
+                    type_parameters: [
+                        [Drop, Store, ],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(5),
+                    name: IdentifierIndex(77),
+                    parameters: SignatureIndex(48),
+                    return_: SignatureIndex(15),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(5),
+                    name: IdentifierIndex(78),
+                    parameters: SignatureIndex(50),
+                    return_: SignatureIndex(22),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(79),
                     parameters: SignatureIndex(30),
                     return_: SignatureIndex(30),
                     type_parameters: [],
@@ -1684,6 +1711,14 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
+                    handle: FunctionHandleIndex(28),
+                    type_parameters: SignatureIndex(22),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(32),
+                    type_parameters: SignatureIndex(12),
+                },
+                FunctionInstantiation {
                     handle: FunctionHandleIndex(4),
                     type_parameters: SignatureIndex(31),
                 },
@@ -1696,28 +1731,24 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(31),
-                    type_parameters: SignatureIndex(32),
+                    handle: FunctionHandleIndex(33),
+                    type_parameters: SignatureIndex(33),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(12),
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(34),
-                    type_parameters: SignatureIndex(32),
-                },
-                FunctionInstantiation {
-                    handle: FunctionHandleIndex(34),
-                    type_parameters: SignatureIndex(35),
-                },
-                FunctionInstantiation {
-                    handle: FunctionHandleIndex(35),
-                    type_parameters: SignatureIndex(22),
+                    handle: FunctionHandleIndex(32),
+                    type_parameters: SignatureIndex(31),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(36),
-                    type_parameters: SignatureIndex(22),
+                    type_parameters: SignatureIndex(33),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(36),
+                    type_parameters: SignatureIndex(36),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(37),
@@ -1728,11 +1759,11 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(40),
+                    handle: FunctionHandleIndex(39),
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(41),
+                    handle: FunctionHandleIndex(40),
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
@@ -1740,23 +1771,31 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
+                    handle: FunctionHandleIndex(43),
+                    type_parameters: SignatureIndex(22),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(44),
+                    type_parameters: SignatureIndex(22),
+                },
+                FunctionInstantiation {
                     handle: FunctionHandleIndex(23),
                     type_parameters: SignatureIndex(22),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(43),
-                    type_parameters: SignatureIndex(32),
+                    handle: FunctionHandleIndex(45),
+                    type_parameters: SignatureIndex(33),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(43),
-                    type_parameters: SignatureIndex(35),
+                    handle: FunctionHandleIndex(45),
+                    type_parameters: SignatureIndex(36),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(20),
                     type_parameters: SignatureIndex(12),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(44),
+                    handle: FunctionHandleIndex(46),
                     type_parameters: SignatureIndex(12),
                 },
                 FunctionInstantiation {
@@ -1764,12 +1803,20 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(31),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(44),
+                    handle: FunctionHandleIndex(46),
                     type_parameters: SignatureIndex(31),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(31),
-                    type_parameters: SignatureIndex(35),
+                    handle: FunctionHandleIndex(47),
+                    type_parameters: SignatureIndex(31),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(47),
+                    type_parameters: SignatureIndex(12),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(33),
+                    type_parameters: SignatureIndex(36),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(27),
@@ -2016,6 +2063,11 @@ ExecCoverageMapWithModules {
                 ),
                 Signature(
                     [
+                        Vector(TypeParameter(0)),
+                    ],
+                ),
+                Signature(
+                    [
                         Struct(StructHandleIndex(9)),
                     ],
                 ),
@@ -2120,6 +2172,11 @@ ExecCoverageMapWithModules {
                         Struct(StructHandleIndex(0)),
                         MutableReference(Vector(Address)),
                         Vector(Struct(StructHandleIndex(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
                     ],
                 ),
                 Signature(
@@ -2317,6 +2374,9 @@ ExecCoverageMapWithModules {
                     "contains",
                 ),
                 Identifier(
+                    "push_back",
+                ),
+                Identifier(
                     "invalid_state",
                 ),
                 Identifier(
@@ -2324,6 +2384,9 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "invalid_argument",
+                ),
+                Identifier(
+                    "empty",
                 ),
                 Identifier(
                     "emit_event",
@@ -2366,6 +2429,9 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "is_empty",
+                ),
+                Identifier(
+                    "pop_back",
                 ),
                 Identifier(
                     "requires_capability",
@@ -2745,6 +2811,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                     ],
@@ -2768,6 +2835,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                     ],
@@ -2791,6 +2859,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                     ],
@@ -2814,6 +2883,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                     ],
@@ -2837,6 +2907,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -2855,7 +2926,7 @@ ExecCoverageMapWithModules {
                                 Branch(15),
                                 MoveLoc(0),
                                 MoveLoc(1),
-                                VecPushBack(22),
+                                CallGeneric(2),
                                 Branch(17),
                                 MoveLoc(0),
                                 Pop,
@@ -2867,6 +2938,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -2882,6 +2954,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -2897,6 +2970,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                         StructDefinitionIndex(10),
@@ -2916,10 +2990,10 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(4),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 CopyLoc(1),
-                                Call(29),
+                                Call(30),
                                 StLoc(3),
                                 CopyLoc(3),
                                 CopyLoc(0),
@@ -2932,7 +3006,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(3),
-                                Call(30),
+                                Call(31),
                                 Abort,
                                 CopyLoc(3),
                                 ExistsGeneric(StructDefInstantiationIndex(5)),
@@ -2943,7 +3017,7 @@ ExecCoverageMapWithModules {
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
                                 ReadRef,
-                                VecPack(12, 0),
+                                CallGeneric(3),
                                 PackGeneric(5),
                                 MoveToGeneric(StructDefInstantiationIndex(5)),
                                 CopyLoc(0),
@@ -2954,7 +3028,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(5),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(3)),
                                 CopyLoc(3),
-                                CallGeneric(2),
+                                CallGeneric(4),
                                 Branch(52),
                                 MoveLoc(1),
                                 Pop,
@@ -2965,12 +3039,12 @@ ExecCoverageMapWithModules {
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(4)),
                                 ImmBorrowLoc(2),
                                 ReadRef,
-                                CallGeneric(3),
+                                CallGeneric(5),
                                 MoveLoc(0),
                                 MoveLoc(2),
                                 MoveLoc(3),
                                 LdFalse,
-                                CallGeneric(4),
+                                CallGeneric(6),
                                 Ret,
                             ],
                         },
@@ -2979,6 +3053,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -2994,12 +3069,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(11),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(32),
+                            locals: SignatureIndex(33),
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
@@ -3030,7 +3106,7 @@ ExecCoverageMapWithModules {
                                 MutBorrowGlobalGeneric(StructDefInstantiationIndex(6)),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(7)),
                                 MoveLoc(4),
-                                CallGeneric(5),
+                                CallGeneric(7),
                                 Branch(33),
                                 MoveLoc(0),
                                 Pop,
@@ -3042,22 +3118,23 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(6),
                             code: [
                                 CopyLoc(0),
-                                CallGeneric(6),
+                                CallGeneric(8),
                                 Not,
                                 BrTrue(9),
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(2),
-                                Call(32),
+                                Call(34),
                                 Abort,
                                 MoveLoc(0),
-                                VecPack(31, 0),
+                                CallGeneric(9),
                                 PackGeneric(4),
                                 MoveToGeneric(StructDefInstantiationIndex(4)),
                                 Ret,
@@ -3068,13 +3145,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(11),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(31),
                             code: [
                                 CopyLoc(0),
-                                Call(29),
+                                Call(30),
                                 StLoc(2),
                                 CopyLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
@@ -3082,7 +3160,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(6),
-                                Call(33),
+                                Call(35),
                                 Abort,
                                 MoveLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(6)),
@@ -3091,14 +3169,14 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(5),
-                                Call(32),
+                                Call(34),
                                 Abort,
                                 CopyLoc(0),
                                 MoveLoc(1),
                                 CopyLoc(0),
-                                CallGeneric(7),
+                                CallGeneric(10),
                                 MoveLoc(0),
-                                CallGeneric(8),
+                                CallGeneric(11),
                                 PackGeneric(6),
                                 MoveToGeneric(StructDefInstantiationIndex(6)),
                                 Ret,
@@ -3109,19 +3187,20 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(12),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(31),
                             code: [
                                 MoveLoc(0),
-                                Call(29),
+                                Call(30),
                                 StLoc(1),
                                 CopyLoc(1),
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
                                 BrTrue(9),
                                 LdConst(6),
-                                Call(33),
+                                Call(35),
                                 Abort,
                                 MoveLoc(1),
                                 ExistsGeneric(StructDefInstantiationIndex(4)),
@@ -3133,12 +3212,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(13),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(36),
+                            locals: SignatureIndex(37),
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(8)),
@@ -3148,21 +3228,21 @@ ExecCoverageMapWithModules {
                                 StLoc(3),
                                 CopyLoc(3),
                                 FreezeRef,
-                                CallGeneric(9),
+                                CallGeneric(12),
                                 BrTrue(17),
                                 MoveLoc(3),
                                 Pop,
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(1),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(8)),
                                 ReadRef,
                                 StLoc(1),
                                 MoveLoc(3),
-                                CallGeneric(10),
+                                CallGeneric(13),
                                 StLoc(2),
                                 MoveLoc(2),
                                 MoveLoc(1),
@@ -3175,6 +3255,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(14),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -3190,13 +3271,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(15),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(31),
                             code: [
                                 CopyLoc(0),
-                                Call(29),
+                                Call(30),
                                 StLoc(2),
                                 MoveLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
@@ -3205,11 +3287,11 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(6),
-                                Call(32),
+                                Call(34),
                                 Abort,
                                 MoveLoc(0),
                                 MoveLoc(1),
-                                CallGeneric(11),
+                                CallGeneric(14),
                                 PackGeneric(7),
                                 MoveToGeneric(StructDefInstantiationIndex(7)),
                                 Ret,
@@ -3220,12 +3302,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(16),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(36),
+                            locals: SignatureIndex(37),
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(10)),
@@ -3235,21 +3318,21 @@ ExecCoverageMapWithModules {
                                 StLoc(3),
                                 CopyLoc(3),
                                 FreezeRef,
-                                CallGeneric(9),
+                                CallGeneric(12),
                                 BrTrue(17),
                                 MoveLoc(3),
                                 Pop,
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(1),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(10)),
                                 ReadRef,
                                 StLoc(1),
                                 MoveLoc(3),
-                                CallGeneric(10),
+                                CallGeneric(13),
                                 StLoc(2),
                                 MoveLoc(2),
                                 MoveLoc(1),
@@ -3262,6 +3345,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(17),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -3277,12 +3361,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(18),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(40),
+                            locals: SignatureIndex(41),
                             code: [
                                 MoveLoc(0),
                                 UnpackGeneric(8),
@@ -3294,16 +3379,16 @@ ExecCoverageMapWithModules {
                                 StLoc(1),
                                 CopyLoc(1),
                                 FreezeRef,
-                                CallGeneric(12),
+                                CallGeneric(15),
                                 BrTrue(17),
                                 MoveLoc(1),
                                 Pop,
                                 LdConst(0),
-                                Call(39),
+                                Call(41),
                                 Abort,
                                 MoveLoc(1),
                                 MoveLoc(2),
-                                CallGeneric(13),
+                                CallGeneric(16),
                                 Ret,
                             ],
                         },
@@ -3312,12 +3397,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(19),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(40),
+                            locals: SignatureIndex(41),
                             code: [
                                 MoveLoc(0),
                                 UnpackGeneric(9),
@@ -3329,16 +3415,16 @@ ExecCoverageMapWithModules {
                                 StLoc(1),
                                 CopyLoc(1),
                                 FreezeRef,
-                                CallGeneric(12),
+                                CallGeneric(15),
                                 BrTrue(17),
                                 MoveLoc(1),
                                 Pop,
                                 LdConst(0),
-                                Call(39),
+                                Call(41),
                                 Abort,
                                 MoveLoc(1),
                                 MoveLoc(2),
-                                CallGeneric(13),
+                                CallGeneric(16),
                                 Ret,
                             ],
                         },
@@ -3347,10 +3433,11 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(20),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(42),
+                            locals: SignatureIndex(43),
                             code: [
                                 CopyLoc(0),
                                 MoveLoc(1),
@@ -3359,7 +3446,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(2),
                                 FreezeRef,
                                 MoveLoc(3),
-                                CallGeneric(14),
+                                CallGeneric(17),
                                 StLoc(5),
                                 StLoc(4),
                                 MoveLoc(4),
@@ -3367,7 +3454,7 @@ ExecCoverageMapWithModules {
                                 Branch(18),
                                 MoveLoc(0),
                                 MoveLoc(5),
-                                CallGeneric(15),
+                                CallGeneric(18),
                                 Pop,
                                 Branch(20),
                                 MoveLoc(0),
@@ -3380,6 +3467,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(21),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                         StructDefinitionIndex(8),
@@ -3388,26 +3476,26 @@ ExecCoverageMapWithModules {
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(45),
+                            locals: SignatureIndex(46),
                             code: [
                                 MoveLoc(0),
-                                Call(29),
+                                Call(30),
                                 StLoc(2),
                                 CopyLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
                                 BrTrue(9),
                                 LdConst(6),
-                                Call(33),
+                                Call(35),
                                 Abort,
                                 CopyLoc(2),
                                 MoveFromGeneric(StructDefInstantiationIndex(7)),
                                 UnpackGeneric(7),
                                 StLoc(3),
                                 ImmBorrowLoc(3),
-                                CallGeneric(9),
+                                CallGeneric(12),
                                 BrTrue(19),
                                 LdConst(1),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 CopyLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(4)),
@@ -3418,7 +3506,7 @@ ExecCoverageMapWithModules {
                                 PackGeneric(0),
                                 StLoc(4),
                                 ImmBorrowLoc(4),
-                                CallGeneric(16),
+                                CallGeneric(19),
                                 CopyLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(6)),
                                 BrTrue(33),
@@ -3430,11 +3518,11 @@ ExecCoverageMapWithModules {
                                 StLoc(5),
                                 Pop,
                                 MoveLoc(5),
-                                CallGeneric(17),
+                                CallGeneric(20),
                                 MoveLoc(6),
-                                CallGeneric(18),
+                                CallGeneric(21),
                                 MutBorrowLoc(3),
-                                CallGeneric(10),
+                                CallGeneric(13),
                                 Ret,
                             ],
                         },
@@ -3443,6 +3531,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(22),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                         StructDefinitionIndex(10),
@@ -3450,7 +3539,7 @@ ExecCoverageMapWithModules {
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(46),
+                            locals: SignatureIndex(47),
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
@@ -3460,7 +3549,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(4),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 CopyLoc(1),
                                 ExistsGeneric(StructDefInstantiationIndex(5)),
@@ -3468,7 +3557,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(2),
-                                Call(33),
+                                Call(35),
                                 Abort,
                                 CopyLoc(1),
                                 MutBorrowGlobalGeneric(StructDefInstantiationIndex(5)),
@@ -3476,10 +3565,10 @@ ExecCoverageMapWithModules {
                                 CopyLoc(5),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(4)),
                                 ImmBorrowLoc(2),
-                                CallGeneric(19),
+                                CallGeneric(22),
                                 MoveLoc(5),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(4)),
-                                CallGeneric(20),
+                                CallGeneric(23),
                                 BrTrue(30),
                                 Branch(44),
                                 CopyLoc(1),
@@ -3495,12 +3584,12 @@ ExecCoverageMapWithModules {
                                 MoveLoc(6),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(3)),
                                 ImmBorrowLoc(1),
-                                CallGeneric(21),
+                                CallGeneric(24),
                                 MoveLoc(0),
                                 MoveLoc(2),
                                 MoveLoc(1),
                                 LdTrue,
-                                CallGeneric(4),
+                                CallGeneric(6),
                                 Ret,
                             ],
                         },
@@ -3509,6 +3598,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(23),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                         StructDefinitionIndex(10),
@@ -3516,7 +3606,7 @@ ExecCoverageMapWithModules {
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(48),
+                            locals: SignatureIndex(49),
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
@@ -3526,7 +3616,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(4),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
@@ -3536,12 +3626,12 @@ ExecCoverageMapWithModules {
                                 StLoc(4),
                                 CopyLoc(4),
                                 FreezeRef,
-                                CallGeneric(22),
+                                CallGeneric(25),
                                 Not,
                                 BrTrue(22),
                                 Branch(47),
                                 CopyLoc(4),
-                                VecPopBack(31),
+                                CallGeneric(26),
                                 StLoc(2),
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(2)),
@@ -3551,18 +3641,18 @@ ExecCoverageMapWithModules {
                                 StLoc(5),
                                 Pop,
                                 ImmBorrowLoc(5),
-                                CallGeneric(20),
+                                CallGeneric(23),
                                 Not,
                                 BrTrue(37),
                                 Branch(46),
                                 MutBorrowLoc(5),
-                                VecPopBack(12),
+                                CallGeneric(27),
                                 StLoc(3),
                                 CopyLoc(0),
                                 MoveLoc(3),
                                 CopyLoc(2),
                                 LdTrue,
-                                CallGeneric(4),
+                                CallGeneric(6),
                                 Branch(32),
                                 Branch(16),
                                 MoveLoc(4),
@@ -3577,6 +3667,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(24),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(7),
                         StructDefinitionIndex(8),
@@ -3585,10 +3676,10 @@ ExecCoverageMapWithModules {
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(49),
+                            locals: SignatureIndex(51),
                             code: [
                                 CopyLoc(1),
-                                Call(29),
+                                Call(30),
                                 StLoc(4),
                                 CopyLoc(4),
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
@@ -3599,21 +3690,21 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(6),
-                                Call(32),
+                                Call(34),
                                 Abort,
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(11)),
                                 ReadRef,
                                 ImmBorrowGlobalGeneric(StructDefInstantiationIndex(7)),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(9)),
-                                CallGeneric(9),
+                                CallGeneric(12),
                                 BrTrue(28),
                                 MoveLoc(1),
                                 Pop,
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(1),
-                                Call(28),
+                                Call(29),
                                 Abort,
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(11)),
@@ -3630,7 +3721,7 @@ ExecCoverageMapWithModules {
                                 PackGeneric(0),
                                 StLoc(2),
                                 ImmBorrowLoc(2),
-                                CallGeneric(16),
+                                CallGeneric(19),
                                 CopyLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(11)),
                                 ReadRef,
@@ -3658,7 +3749,7 @@ ExecCoverageMapWithModules {
                                 MutBorrowGlobalGeneric(StructDefInstantiationIndex(6)),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(13)),
                                 MoveLoc(3),
-                                CallGeneric(23),
+                                CallGeneric(28),
                                 MoveLoc(1),
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(11)),
@@ -3673,6 +3764,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(25),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -3688,15 +3780,16 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(26),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(8),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(50),
+                            locals: SignatureIndex(52),
                             code: [
                                 MoveLoc(0),
-                                Call(29),
+                                Call(30),
                                 StLoc(4),
                                 CopyLoc(4),
                                 ExistsGeneric(StructDefInstantiationIndex(5)),
@@ -3708,12 +3801,12 @@ ExecCoverageMapWithModules {
                                 CopyLoc(5),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(4)),
                                 ImmBorrowLoc(1),
-                                CallGeneric(24),
+                                CallGeneric(29),
                                 BrTrue(20),
                                 MoveLoc(5),
                                 Pop,
                                 LdConst(2),
-                                Call(45),
+                                Call(48),
                                 Abort,
                                 MoveLoc(5),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(14)),
@@ -3726,7 +3819,7 @@ ExecCoverageMapWithModules {
                                 ExistsGeneric(StructDefInstantiationIndex(7)),
                                 BrTrue(33),
                                 LdConst(6),
-                                Call(33),
+                                Call(35),
                                 Abort,
                                 CopyLoc(4),
                                 MoveLoc(4),
@@ -3757,17 +3850,21 @@ ExecCoverageMapWithModules {
                     address: AddressIdentifierIndex(0),
                     name: IdentifierIndex(2),
                 },
+                ModuleHandle {
+                    address: AddressIdentifierIndex(0),
+                    name: IdentifierIndex(3),
+                },
             ],
             struct_handles: [
                 StructHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(3),
+                    name: IdentifierIndex(4),
                     abilities: [Copy, Drop, Store, ],
                     type_parameters: [],
                 },
                 StructHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(4),
+                    name: IdentifierIndex(5),
                     abilities: [Copy, Drop, Store, ],
                     type_parameters: [],
                 },
@@ -3786,44 +3883,37 @@ ExecCoverageMapWithModules {
             function_handles: [
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(5),
+                    name: IdentifierIndex(6),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(1),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(6),
+                    name: IdentifierIndex(7),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(2),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(7),
+                    name: IdentifierIndex(8),
                     parameters: SignatureIndex(3),
                     return_: SignatureIndex(4),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(8),
+                    name: IdentifierIndex(9),
                     parameters: SignatureIndex(4),
                     return_: SignatureIndex(3),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(9),
+                    name: IdentifierIndex(10),
                     parameters: SignatureIndex(5),
                     return_: SignatureIndex(6),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(10),
-                    parameters: SignatureIndex(4),
-                    return_: SignatureIndex(1),
                     type_parameters: [],
                 },
                 FunctionHandle {
@@ -3836,57 +3926,57 @@ ExecCoverageMapWithModules {
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
                     name: IdentifierIndex(12),
+                    parameters: SignatureIndex(4),
+                    return_: SignatureIndex(1),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(0),
+                    name: IdentifierIndex(13),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(7),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(13),
+                    name: IdentifierIndex(14),
                     parameters: SignatureIndex(8),
                     return_: SignatureIndex(3),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(14),
+                    name: IdentifierIndex(15),
                     parameters: SignatureIndex(9),
                     return_: SignatureIndex(10),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(15),
+                    name: IdentifierIndex(16),
                     parameters: SignatureIndex(6),
                     return_: SignatureIndex(5),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(16),
+                    name: IdentifierIndex(17),
                     parameters: SignatureIndex(6),
                     return_: SignatureIndex(11),
                     type_parameters: [],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(18),
-                    parameters: SignatureIndex(7),
-                    return_: SignatureIndex(7),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(19),
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(13),
                     parameters: SignatureIndex(13),
-                    return_: SignatureIndex(1),
+                    return_: SignatureIndex(7),
                     type_parameters: [
                         [],
                     ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(20),
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(19),
                     parameters: SignatureIndex(14),
                     return_: SignatureIndex(15),
                     type_parameters: [
@@ -3894,19 +3984,62 @@ ExecCoverageMapWithModules {
                     ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(2),
+                    module: ModuleHandleIndex(1),
+                    name: IdentifierIndex(20),
+                    parameters: SignatureIndex(7),
+                    return_: SignatureIndex(7),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
                     name: IdentifierIndex(21),
-                    parameters: SignatureIndex(10),
-                    return_: SignatureIndex(14),
+                    parameters: SignatureIndex(16),
+                    return_: SignatureIndex(17),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(22),
+                    parameters: SignatureIndex(18),
+                    return_: SignatureIndex(10),
                     type_parameters: [
                         [],
                     ],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(22),
-                    parameters: SignatureIndex(15),
-                    return_: SignatureIndex(14),
+                    name: IdentifierIndex(23),
+                    parameters: SignatureIndex(19),
+                    return_: SignatureIndex(1),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(24),
+                    parameters: SignatureIndex(20),
+                    return_: SignatureIndex(17),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(25),
+                    parameters: SignatureIndex(10),
+                    return_: SignatureIndex(20),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(26),
+                    parameters: SignatureIndex(17),
+                    return_: SignatureIndex(20),
                     type_parameters: [
                         [],
                     ],
@@ -3926,19 +4059,35 @@ ExecCoverageMapWithModules {
             struct_def_instantiations: [],
             function_instantiations: [
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(13),
-                    type_parameters: SignatureIndex(5),
+                    handle: FunctionHandleIndex(12),
+                    type_parameters: SignatureIndex(4),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(14),
-                    type_parameters: SignatureIndex(5),
+                    handle: FunctionHandleIndex(13),
+                    type_parameters: SignatureIndex(4),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(15),
-                    type_parameters: SignatureIndex(5),
+                    type_parameters: SignatureIndex(4),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(16),
+                    type_parameters: SignatureIndex(4),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(17),
+                    type_parameters: SignatureIndex(5),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(18),
+                    type_parameters: SignatureIndex(5),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(19),
+                    type_parameters: SignatureIndex(5),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(20),
                     type_parameters: SignatureIndex(5),
                 },
             ],
@@ -4012,17 +4161,44 @@ ExecCoverageMapWithModules {
                 ),
                 Signature(
                     [
+                        Reference(Vector(TypeParameter(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        Reference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
+                        Reference(TypeParameter(0)),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        TypeParameter(0),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                        TypeParameter(0),
+                    ],
+                ),
+                Signature(
+                    [
                         Reference(StructInstantiation(StructHandleIndex(2), [TypeParameter(0)])),
                     ],
                 ),
                 Signature(
                     [
                         StructInstantiation(StructHandleIndex(2), [TypeParameter(0)]),
-                    ],
-                ),
-                Signature(
-                    [
-                        TypeParameter(0),
                     ],
                 ),
                 Signature(
@@ -4042,6 +4218,9 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "Option",
+                ),
+                Identifier(
+                    "Vector",
                 ),
                 Identifier(
                     "Char",
@@ -4089,7 +4268,16 @@ ExecCoverageMapWithModules {
                     "bytes",
                 ),
                 Identifier(
+                    "borrow",
+                ),
+                Identifier(
                     "invalid_argument",
+                ),
+                Identifier(
+                    "pop_back",
+                ),
+                Identifier(
+                    "push_back",
                 ),
                 Identifier(
                     "is_some",
@@ -4129,7 +4317,7 @@ ExecCoverageMapWithModules {
                     field_information: Declared(
                         [
                             FieldDefinition {
-                                name: IdentifierIndex(7),
+                                name: IdentifierIndex(8),
                                 signature: TypeSignature(
                                     U8,
                                 ),
@@ -4142,7 +4330,7 @@ ExecCoverageMapWithModules {
                     field_information: Declared(
                         [
                             FieldDefinition {
-                                name: IdentifierIndex(17),
+                                name: IdentifierIndex(18),
                                 signature: TypeSignature(
                                     Vector(U8),
                                 ),
@@ -4155,6 +4343,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4162,7 +4351,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(4),
+                                CallGeneric(0),
                                 StLoc(3),
                                 LdU64(0),
                                 StLoc(2),
@@ -4175,7 +4364,7 @@ ExecCoverageMapWithModules {
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
                                 CopyLoc(2),
-                                VecImmBorrow(4),
+                                CallGeneric(1),
                                 ReadRef,
                                 StLoc(1),
                                 MoveLoc(1),
@@ -4202,6 +4391,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4217,6 +4407,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4234,6 +4425,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4243,7 +4435,7 @@ ExecCoverageMapWithModules {
                                 Call(6),
                                 BrTrue(6),
                                 LdConst(0),
-                                Call(12),
+                                Call(14),
                                 Abort,
                                 MoveLoc(0),
                                 Pack(0),
@@ -4255,6 +4447,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4272,6 +4465,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4298,6 +4492,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4314,6 +4509,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4321,7 +4517,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 MoveLoc(0),
                                 Call(1),
-                                VecLen(4),
+                                CallGeneric(0),
                                 Ret,
                             ],
                         },
@@ -4330,6 +4526,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4337,7 +4534,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 MoveLoc(0),
                                 MutBorrowField(FieldHandleIndex(0)),
-                                VecPopBack(4),
+                                CallGeneric(2),
                                 Pack(0),
                                 Ret,
                             ],
@@ -4347,6 +4544,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4357,7 +4555,7 @@ ExecCoverageMapWithModules {
                                 ImmBorrowLoc(1),
                                 ImmBorrowField(FieldHandleIndex(1)),
                                 ReadRef,
-                                VecPushBack(4),
+                                CallGeneric(3),
                                 Ret,
                             ],
                         },
@@ -4366,6 +4564,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4375,13 +4574,13 @@ ExecCoverageMapWithModules {
                                 Call(11),
                                 StLoc(1),
                                 ImmBorrowLoc(1),
-                                CallGeneric(0),
+                                CallGeneric(4),
                                 BrTrue(9),
                                 LdConst(0),
-                                Call(12),
+                                Call(14),
                                 Abort,
                                 MoveLoc(1),
-                                CallGeneric(1),
+                                CallGeneric(5),
                                 Ret,
                             ],
                         },
@@ -4390,13 +4589,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(11),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(16),
+                            locals: SignatureIndex(21),
                             code: [
                                 ImmBorrowLoc(0),
-                                VecLen(4),
+                                CallGeneric(0),
                                 StLoc(2),
                                 LdU64(0),
                                 StLoc(1),
@@ -4408,7 +4608,7 @@ ExecCoverageMapWithModules {
                                 Branch(28),
                                 ImmBorrowLoc(0),
                                 CopyLoc(1),
-                                VecImmBorrow(4),
+                                CallGeneric(1),
                                 ReadRef,
                                 StLoc(3),
                                 MoveLoc(3),
@@ -4416,7 +4616,7 @@ ExecCoverageMapWithModules {
                                 Not,
                                 BrTrue(21),
                                 Branch(23),
-                                CallGeneric(2),
+                                CallGeneric(6),
                                 Ret,
                                 MoveLoc(1),
                                 LdU64(1),
@@ -4426,7 +4626,7 @@ ExecCoverageMapWithModules {
                                 Nop,
                                 MoveLoc(0),
                                 Pack(1),
-                                CallGeneric(3),
+                                CallGeneric(7),
                                 Ret,
                             ],
                         },
@@ -4490,6 +4690,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
@@ -4507,6 +4708,10 @@ ExecCoverageMapWithModules {
                     address: AddressIdentifierIndex(0),
                     name: IdentifierIndex(1),
                 },
+                ModuleHandle {
+                    address: AddressIdentifierIndex(0),
+                    name: IdentifierIndex(2),
+                },
             ],
             struct_handles: [
                 StructHandle {
@@ -4519,37 +4724,30 @@ ExecCoverageMapWithModules {
             function_handles: [
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(2),
+                    name: IdentifierIndex(3),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(1),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(3),
+                    name: IdentifierIndex(4),
                     parameters: SignatureIndex(2),
                     return_: SignatureIndex(3),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(4),
+                    name: IdentifierIndex(5),
                     parameters: SignatureIndex(0),
                     return_: SignatureIndex(3),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(5),
+                    name: IdentifierIndex(6),
                     parameters: SignatureIndex(3),
                     return_: SignatureIndex(4),
-                    type_parameters: [],
-                },
-                FunctionHandle {
-                    module: ModuleHandleIndex(0),
-                    name: IdentifierIndex(6),
-                    parameters: SignatureIndex(5),
-                    return_: SignatureIndex(6),
                     type_parameters: [],
                 },
                 FunctionHandle {
@@ -4567,11 +4765,63 @@ ExecCoverageMapWithModules {
                     type_parameters: [],
                 },
                 FunctionHandle {
+                    module: ModuleHandleIndex(0),
+                    name: IdentifierIndex(9),
+                    parameters: SignatureIndex(5),
+                    return_: SignatureIndex(6),
+                    type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(4),
+                    parameters: SignatureIndex(7),
+                    return_: SignatureIndex(3),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
                     module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(10),
+                    name: IdentifierIndex(11),
                     parameters: SignatureIndex(3),
                     return_: SignatureIndex(3),
                     type_parameters: [],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(12),
+                    parameters: SignatureIndex(8),
+                    return_: SignatureIndex(9),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(13),
+                    parameters: SignatureIndex(6),
+                    return_: SignatureIndex(11),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(14),
+                    parameters: SignatureIndex(12),
+                    return_: SignatureIndex(6),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(15),
+                    parameters: SignatureIndex(14),
+                    return_: SignatureIndex(15),
+                    type_parameters: [
+                        [],
+                    ],
                 },
             ],
             field_handles: [
@@ -4586,7 +4836,28 @@ ExecCoverageMapWithModules {
             ],
             friend_decls: [],
             struct_def_instantiations: [],
-            function_instantiations: [],
+            function_instantiations: [
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(7),
+                    type_parameters: SignatureIndex(1),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(9),
+                    type_parameters: SignatureIndex(1),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(10),
+                    type_parameters: SignatureIndex(1),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(11),
+                    type_parameters: SignatureIndex(1),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(12),
+                    type_parameters: SignatureIndex(1),
+                },
+            ],
             field_instantiations: [],
             signatures: [
                 Signature(
@@ -4626,13 +4897,51 @@ ExecCoverageMapWithModules {
                 ),
                 Signature(
                     [
+                        Reference(Vector(TypeParameter(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        Reference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
+                        Reference(TypeParameter(0)),
+                    ],
+                ),
+                Signature(
+                    [
                         Vector(Bool),
                         U64,
                     ],
                 ),
                 Signature(
                     [
+                        Vector(TypeParameter(0)),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                        TypeParameter(0),
+                    ],
+                ),
+                Signature(
+                    [
                         MutableReference(Bool),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(TypeParameter(0)),
                     ],
                 ),
                 Signature(
@@ -4652,6 +4961,9 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "Errors",
+                ),
+                Identifier(
+                    "Vector",
                 ),
                 Identifier(
                     "is_index_set",
@@ -4679,6 +4991,18 @@ ExecCoverageMapWithModules {
                 ),
                 Identifier(
                     "invalid_argument",
+                ),
+                Identifier(
+                    "borrow",
+                ),
+                Identifier(
+                    "empty",
+                ),
+                Identifier(
+                    "push_back",
+                ),
+                Identifier(
+                    "borrow_mut",
                 ),
             ],
             address_identifiers: [
@@ -4732,13 +5056,13 @@ ExecCoverageMapWithModules {
                     field_information: Declared(
                         [
                             FieldDefinition {
-                                name: IdentifierIndex(3),
+                                name: IdentifierIndex(4),
                                 signature: TypeSignature(
                                     U64,
                                 ),
                             },
                             FieldDefinition {
-                                name: IdentifierIndex(9),
+                                name: IdentifierIndex(10),
                                 signature: TypeSignature(
                                     Vector(Bool),
                                 ),
@@ -4751,6 +5075,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4759,18 +5084,18 @@ ExecCoverageMapWithModules {
                                 CopyLoc(1),
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(1),
+                                CallGeneric(0),
                                 Lt,
                                 BrTrue(11),
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(0),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 MoveLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
                                 MoveLoc(1),
-                                VecImmBorrow(1),
+                                CallGeneric(1),
                                 ReadRef,
                                 Ret,
                             ],
@@ -4780,6 +5105,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4787,7 +5113,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 MoveLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(1),
+                                CallGeneric(0),
                                 Ret,
                             ],
                         },
@@ -4796,6 +5122,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -4810,7 +5137,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(0),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 CopyLoc(1),
                                 StLoc(2),
@@ -4846,28 +5173,29 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(7),
+                            locals: SignatureIndex(10),
                             code: [
                                 CopyLoc(0),
                                 LdU64(0),
                                 Gt,
                                 BrTrue(7),
                                 LdConst(1),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 CopyLoc(0),
                                 LdConst(2),
                                 Lt,
                                 BrTrue(14),
                                 LdConst(1),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 LdU64(0),
                                 StLoc(2),
-                                VecPack(1, 0),
+                                CallGeneric(2),
                                 StLoc(1),
                                 Nop,
                                 CopyLoc(2),
@@ -4877,7 +5205,7 @@ ExecCoverageMapWithModules {
                                 Branch(32),
                                 MutBorrowLoc(1),
                                 LdFalse,
-                                VecPushBack(1),
+                                CallGeneric(3),
                                 MoveLoc(2),
                                 LdU64(1),
                                 Add,
@@ -4895,26 +5223,27 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(8),
+                            locals: SignatureIndex(13),
                             code: [
                                 CopyLoc(1),
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(1),
+                                CallGeneric(0),
                                 Lt,
                                 BrTrue(11),
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(0),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 MoveLoc(0),
                                 MutBorrowField(FieldHandleIndex(0)),
                                 MoveLoc(1),
-                                VecMutBorrow(1),
+                                CallGeneric(4),
                                 StLoc(2),
                                 LdTrue,
                                 MoveLoc(2),
@@ -4927,10 +5256,11 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(9),
+                            locals: SignatureIndex(16),
                             code: [
                                 CopyLoc(1),
                                 CopyLoc(0),
@@ -4941,7 +5271,7 @@ ExecCoverageMapWithModules {
                                 Branch(34),
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(1),
+                                CallGeneric(0),
                                 StLoc(7),
                                 LdU64(0),
                                 StLoc(5),
@@ -4953,7 +5283,7 @@ ExecCoverageMapWithModules {
                                 CopyLoc(0),
                                 MutBorrowField(FieldHandleIndex(0)),
                                 CopyLoc(5),
-                                VecMutBorrow(1),
+                                CallGeneric(4),
                                 StLoc(4),
                                 LdFalse,
                                 MoveLoc(4),
@@ -5032,26 +5362,27 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(8),
+                            locals: SignatureIndex(13),
                             code: [
                                 CopyLoc(1),
                                 CopyLoc(0),
                                 ImmBorrowField(FieldHandleIndex(0)),
-                                VecLen(1),
+                                CallGeneric(0),
                                 Lt,
                                 BrTrue(11),
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(0),
-                                Call(7),
+                                Call(8),
                                 Abort,
                                 MoveLoc(0),
                                 MutBorrowField(FieldHandleIndex(0)),
                                 MoveLoc(1),
-                                VecMutBorrow(1),
+                                CallGeneric(4),
                                 StLoc(2),
                                 LdFalse,
                                 MoveLoc(2),
@@ -5231,32 +5562,50 @@ ExecCoverageMapWithModules {
                     ],
                 },
                 FunctionHandle {
-                    module: ModuleHandleIndex(2),
+                    module: ModuleHandleIndex(3),
                     name: IdentifierIndex(21),
+                    parameters: SignatureIndex(3),
+                    return_: SignatureIndex(4),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(22),
                     parameters: SignatureIndex(11),
                     return_: SignatureIndex(7),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(22),
+                    name: IdentifierIndex(23),
                     parameters: SignatureIndex(15),
                     return_: SignatureIndex(15),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(23),
-                    parameters: SignatureIndex(13),
-                    return_: SignatureIndex(17),
+                    name: IdentifierIndex(24),
+                    parameters: SignatureIndex(4),
+                    return_: SignatureIndex(16),
                     type_parameters: [
                         [],
                     ],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(3),
-                    name: IdentifierIndex(24),
-                    parameters: SignatureIndex(18),
+                    name: IdentifierIndex(25),
+                    parameters: SignatureIndex(13),
+                    return_: SignatureIndex(18),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(3),
+                    name: IdentifierIndex(26),
+                    parameters: SignatureIndex(19),
                     return_: SignatureIndex(12),
                     type_parameters: [
                         [],
@@ -5264,14 +5613,14 @@ ExecCoverageMapWithModules {
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(25),
+                    name: IdentifierIndex(27),
                     parameters: SignatureIndex(15),
                     return_: SignatureIndex(15),
                     type_parameters: [],
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(1),
-                    name: IdentifierIndex(26),
+                    name: IdentifierIndex(28),
                     parameters: SignatureIndex(15),
                     return_: SignatureIndex(15),
                     type_parameters: [],
@@ -5324,15 +5673,23 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(12),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(2),
-                    type_parameters: SignatureIndex(7),
-                },
-                FunctionInstantiation {
-                    handle: FunctionHandleIndex(13),
+                    handle: FunctionHandleIndex(11),
                     type_parameters: SignatureIndex(12),
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(14),
+                    type_parameters: SignatureIndex(7),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(2),
+                    type_parameters: SignatureIndex(7),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(15),
+                    type_parameters: SignatureIndex(12),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(16),
                     type_parameters: SignatureIndex(12),
                 },
                 FunctionInstantiation {
@@ -5453,6 +5810,11 @@ ExecCoverageMapWithModules {
                 ),
                 Signature(
                     [
+                        Vector(TypeParameter(0)),
+                    ],
+                ),
+                Signature(
+                    [
                         MutableReference(Vector(TypeParameter(0))),
                         Reference(TypeParameter(0)),
                         Bool,
@@ -5544,10 +5906,16 @@ ExecCoverageMapWithModules {
                     "contains",
                 ),
                 Identifier(
+                    "push_back",
+                ),
+                Identifier(
                     "address_of",
                 ),
                 Identifier(
                     "already_published",
+                ),
+                Identifier(
+                    "empty",
                 ),
                 Identifier(
                     "index_of",
@@ -5652,6 +6020,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(1),
                         StructDefinitionIndex(2),
@@ -5671,6 +6040,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(1),
                         StructDefinitionIndex(2),
@@ -5690,6 +6060,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -5708,7 +6079,7 @@ ExecCoverageMapWithModules {
                                 Branch(15),
                                 MoveLoc(0),
                                 MoveLoc(1),
-                                VecPushBack(12),
+                                CallGeneric(2),
                                 Branch(17),
                                 MoveLoc(0),
                                 Pop,
@@ -5720,13 +6091,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(7),
                             code: [
                                 CopyLoc(0),
-                                Call(11),
+                                Call(12),
                                 StLoc(2),
                                 MoveLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(2)),
@@ -5735,10 +6107,10 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 Pop,
                                 LdConst(0),
-                                Call(12),
+                                Call(13),
                                 Abort,
                                 MoveLoc(0),
-                                VecPack(7, 0),
+                                CallGeneric(3),
                                 PackGeneric(2),
                                 MoveToGeneric(StructDefInstantiationIndex(2)),
                                 Ret,
@@ -5749,6 +6121,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(2),
                     ],
@@ -5757,7 +6130,7 @@ ExecCoverageMapWithModules {
                             locals: SignatureIndex(7),
                             code: [
                                 CopyLoc(2),
-                                Call(11),
+                                Call(12),
                                 StLoc(3),
                                 CopyLoc(3),
                                 ExistsGeneric(StructDefInstantiationIndex(3)),
@@ -5778,7 +6151,7 @@ ExecCoverageMapWithModules {
                                 MutBorrowGlobalGeneric(StructDefInstantiationIndex(2)),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(1)),
                                 MoveLoc(3),
-                                CallGeneric(2),
+                                CallGeneric(4),
                                 Ret,
                             ],
                         },
@@ -5787,6 +6160,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -5803,10 +6177,11 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(16),
+                            locals: SignatureIndex(17),
                             code: [
                                 CopyLoc(0),
                                 MoveLoc(1),
@@ -5815,7 +6190,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(2),
                                 FreezeRef,
                                 MoveLoc(3),
-                                CallGeneric(3),
+                                CallGeneric(5),
                                 StLoc(5),
                                 StLoc(4),
                                 MoveLoc(4),
@@ -5823,7 +6198,7 @@ ExecCoverageMapWithModules {
                                 Branch(18),
                                 MoveLoc(0),
                                 MoveLoc(5),
-                                CallGeneric(4),
+                                CallGeneric(6),
                                 Pop,
                                 Branch(20),
                                 MoveLoc(0),
@@ -5836,6 +6211,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(1),
                         StructDefinitionIndex(2),
@@ -5860,7 +6236,7 @@ ExecCoverageMapWithModules {
                                 MutBorrowGlobalGeneric(StructDefInstantiationIndex(2)),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(1)),
                                 ImmBorrowLoc(2),
-                                CallGeneric(5),
+                                CallGeneric(7),
                                 Ret,
                             ],
                         },
@@ -5869,6 +6245,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -5885,16 +6262,17 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(1),
                         StructDefinitionIndex(2),
                     ],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(19),
+                            locals: SignatureIndex(20),
                             code: [
                                 MoveLoc(0),
-                                Call(11),
+                                Call(12),
                                 StLoc(2),
                                 CopyLoc(2),
                                 ExistsGeneric(StructDefInstantiationIndex(3)),
@@ -5909,16 +6287,16 @@ ExecCoverageMapWithModules {
                                 ExistsGeneric(StructDefInstantiationIndex(2)),
                                 BrTrue(18),
                                 LdConst(1),
-                                Call(15),
+                                Call(17),
                                 Abort,
                                 CopyLoc(3),
                                 ImmBorrowGlobalGeneric(StructDefInstantiationIndex(2)),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(1)),
                                 ImmBorrowLoc(2),
-                                CallGeneric(6),
+                                CallGeneric(8),
                                 BrTrue(27),
                                 LdConst(1),
-                                Call(15),
+                                Call(17),
                                 Abort,
                                 MoveLoc(3),
                                 StLoc(1),
@@ -5927,7 +6305,7 @@ ExecCoverageMapWithModules {
                                 ExistsGeneric(StructDefInstantiationIndex(2)),
                                 BrTrue(36),
                                 LdConst(0),
-                                Call(16),
+                                Call(18),
                                 Abort,
                                 MoveLoc(2),
                                 StLoc(1),
@@ -6158,6 +6536,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6174,6 +6553,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6190,6 +6570,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6206,6 +6587,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6222,6 +6604,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6238,6 +6621,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6254,6 +6638,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6273,6 +6658,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6289,6 +6675,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6305,6 +6692,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6321,6 +6709,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6669,6 +7058,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6686,6 +7076,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6716,6 +7107,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6732,6 +7124,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -6751,6 +7144,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
@@ -7037,6 +7431,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7098,6 +7493,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7113,6 +7509,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7156,6 +7553,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7172,6 +7570,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7190,6 +7589,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7606,6 +8006,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(2),
                     ],
@@ -7638,6 +8039,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7654,6 +8056,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Private,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(2),
                     ],
@@ -7686,6 +8089,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(2),
                     ],
@@ -7708,6 +8112,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7725,6 +8130,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7742,6 +8148,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7759,6 +8166,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7789,6 +8197,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [
                         StructDefinitionIndex(2),
                     ],
@@ -7818,6 +8227,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7834,6 +8244,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7850,6 +8261,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(11),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7866,6 +8278,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(12),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -7941,12 +8354,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
@@ -8127,8 +8542,26 @@ ExecCoverageMapWithModules {
                 },
                 FunctionHandle {
                     module: ModuleHandleIndex(2),
-                    name: IdentifierIndex(20),
+                    name: IdentifierIndex(3),
+                    parameters: SignatureIndex(13),
+                    return_: SignatureIndex(1),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(4),
                     parameters: SignatureIndex(14),
+                    return_: SignatureIndex(3),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(20),
+                    parameters: SignatureIndex(16),
                     return_: SignatureIndex(5),
                     type_parameters: [
                         [],
@@ -8137,7 +8570,7 @@ ExecCoverageMapWithModules {
                 FunctionHandle {
                     module: ModuleHandleIndex(2),
                     name: IdentifierIndex(6),
-                    parameters: SignatureIndex(15),
+                    parameters: SignatureIndex(17),
                     return_: SignatureIndex(5),
                     type_parameters: [
                         [],
@@ -8146,8 +8579,44 @@ ExecCoverageMapWithModules {
                 FunctionHandle {
                     module: ModuleHandleIndex(2),
                     name: IdentifierIndex(21),
+                    parameters: SignatureIndex(18),
+                    return_: SignatureIndex(7),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(22),
+                    parameters: SignatureIndex(20),
+                    return_: SignatureIndex(8),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(23),
+                    parameters: SignatureIndex(21),
+                    return_: SignatureIndex(7),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(24),
+                    parameters: SignatureIndex(7),
+                    return_: SignatureIndex(18),
+                    type_parameters: [
+                        [],
+                    ],
+                },
+                FunctionHandle {
+                    module: ModuleHandleIndex(2),
+                    name: IdentifierIndex(25),
                     parameters: SignatureIndex(8),
-                    return_: SignatureIndex(16),
+                    return_: SignatureIndex(18),
                     type_parameters: [
                         [],
                     ],
@@ -8180,11 +8649,35 @@ ExecCoverageMapWithModules {
                     type_parameters: SignatureIndex(8),
                 },
                 FunctionInstantiation {
+                    handle: FunctionHandleIndex(18),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(19),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
                     handle: FunctionHandleIndex(10),
                     type_parameters: SignatureIndex(8),
                 },
                 FunctionInstantiation {
-                    handle: FunctionHandleIndex(18),
+                    handle: FunctionHandleIndex(20),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(21),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(22),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(23),
+                    type_parameters: SignatureIndex(8),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(24),
                     type_parameters: SignatureIndex(8),
                 },
             ],
@@ -8264,6 +8757,18 @@ ExecCoverageMapWithModules {
                 ),
                 Signature(
                     [
+                        Reference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                        U64,
+                    ],
+                ),
+                Signature(
+                    [
                         Reference(TypeParameter(0)),
                         Reference(Vector(TypeParameter(0))),
                     ],
@@ -8293,6 +8798,12 @@ ExecCoverageMapWithModules {
                 Signature(
                     [
                         MutableReference(Vector(TypeParameter(0))),
+                    ],
+                ),
+                Signature(
+                    [
+                        MutableReference(Vector(TypeParameter(0))),
+                        TypeParameter(0),
                     ],
                 ),
                 Signature(
@@ -8373,6 +8884,18 @@ ExecCoverageMapWithModules {
                     "is_empty",
                 ),
                 Identifier(
+                    "destroy_empty",
+                ),
+                Identifier(
+                    "pop_back",
+                ),
+                Identifier(
+                    "push_back",
+                ),
+                Identifier(
+                    "empty",
+                ),
+                Identifier(
                     "singleton",
                 ),
             ],
@@ -8427,6 +8950,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8443,7 +8967,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 LdU64(0),
-                                VecImmBorrow(8),
+                                CallGeneric(1),
                                 Ret,
                             ],
                         },
@@ -8452,6 +8976,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8469,7 +8994,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 LdU64(0),
-                                VecMutBorrow(8),
+                                CallGeneric(2),
                                 Ret,
                             ],
                         },
@@ -8478,16 +9003,17 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(13),
+                            locals: SignatureIndex(15),
                             code: [
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 StLoc(3),
                                 CopyLoc(3),
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 BrTrue(7),
                                 Branch(12),
                                 MoveLoc(3),
@@ -8499,7 +9025,7 @@ ExecCoverageMapWithModules {
                                 Pop,
                                 MoveLoc(3),
                                 LdU64(0),
-                                VecImmBorrow(8),
+                                CallGeneric(1),
                                 StLoc(2),
                                 MoveLoc(2),
                                 Ret,
@@ -8510,6 +9036,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8518,7 +9045,7 @@ ExecCoverageMapWithModules {
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 MoveLoc(1),
-                                CallGeneric(2),
+                                CallGeneric(4),
                                 Ret,
                             ],
                         },
@@ -8527,13 +9054,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(16),
+                            locals: SignatureIndex(18),
                             code: [
                                 ImmBorrowLoc(0),
-                                CallGeneric(3),
+                                CallGeneric(5),
                                 BrTrue(6),
                                 LdConst(0),
                                 Call(15),
@@ -8542,7 +9070,7 @@ ExecCoverageMapWithModules {
                                 UnpackGeneric(0),
                                 StLoc(1),
                                 MoveLoc(1),
-                                VecUnpack(8, 0),
+                                CallGeneric(6),
                                 Ret,
                             ],
                         },
@@ -8551,10 +9079,11 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(17),
+                            locals: SignatureIndex(19),
                             code: [
                                 ImmBorrowLoc(0),
                                 CallGeneric(0),
@@ -8566,10 +9095,10 @@ ExecCoverageMapWithModules {
                                 UnpackGeneric(0),
                                 StLoc(2),
                                 MutBorrowLoc(2),
-                                VecPopBack(8),
+                                CallGeneric(7),
                                 StLoc(1),
                                 MoveLoc(2),
-                                VecUnpack(8, 0),
+                                CallGeneric(6),
                                 MoveLoc(1),
                                 Ret,
                             ],
@@ -8579,24 +9108,25 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(17),
+                            locals: SignatureIndex(19),
                             code: [
                                 MoveLoc(0),
                                 UnpackGeneric(0),
                                 StLoc(3),
                                 MutBorrowLoc(3),
                                 FreezeRef,
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 BrTrue(8),
                                 Branch(11),
                                 MoveLoc(1),
                                 StLoc(2),
                                 Branch(14),
                                 MutBorrowLoc(3),
-                                VecPopBack(8),
+                                CallGeneric(7),
                                 StLoc(2),
                                 MoveLoc(2),
                                 Ret,
@@ -8607,6 +9137,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8623,7 +9154,7 @@ ExecCoverageMapWithModules {
                                 Abort,
                                 MoveLoc(0),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(0)),
-                                VecPopBack(8),
+                                CallGeneric(7),
                                 Ret,
                             ],
                         },
@@ -8632,17 +9163,18 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(18),
+                            locals: SignatureIndex(20),
                             code: [
                                 MoveLoc(0),
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 StLoc(2),
                                 CopyLoc(2),
                                 FreezeRef,
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 BrTrue(12),
                                 MoveLoc(2),
                                 Pop,
@@ -8651,7 +9183,7 @@ ExecCoverageMapWithModules {
                                 Abort,
                                 MoveLoc(2),
                                 MoveLoc(1),
-                                VecPushBack(8),
+                                CallGeneric(8),
                                 Ret,
                             ],
                         },
@@ -8660,16 +9192,17 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(19),
+                            locals: SignatureIndex(22),
                             code: [
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 StLoc(3),
                                 CopyLoc(3),
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 BrTrue(7),
                                 Branch(12),
                                 MoveLoc(3),
@@ -8679,7 +9212,7 @@ ExecCoverageMapWithModules {
                                 Branch(17),
                                 MoveLoc(3),
                                 LdU64(0),
-                                VecImmBorrow(8),
+                                CallGeneric(1),
                                 ReadRef,
                                 StLoc(2),
                                 MoveLoc(2),
@@ -8691,6 +9224,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8698,7 +9232,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 Ret,
                             ],
                         },
@@ -8707,6 +9241,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(11),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8714,7 +9249,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 MoveLoc(0),
                                 ImmBorrowFieldGeneric(FieldInstantiationIndex(0)),
-                                CallGeneric(1),
+                                CallGeneric(3),
                                 Not,
                                 Ret,
                             ],
@@ -8724,12 +9259,13 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(12),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(7),
                             code: [
-                                VecPack(8, 0),
+                                CallGeneric(9),
                                 PackGeneric(0),
                                 Ret,
                             ],
@@ -8739,13 +9275,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(13),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(7),
                             code: [
                                 MoveLoc(0),
-                                CallGeneric(4),
+                                CallGeneric(10),
                                 PackGeneric(0),
                                 Ret,
                             ],
@@ -8755,10 +9292,11 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(14),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
-                            locals: SignatureIndex(20),
+                            locals: SignatureIndex(23),
                             code: [
                                 CopyLoc(0),
                                 FreezeRef,
@@ -8773,11 +9311,11 @@ ExecCoverageMapWithModules {
                                 MutBorrowFieldGeneric(FieldInstantiationIndex(0)),
                                 StLoc(3),
                                 CopyLoc(3),
-                                VecPopBack(8),
+                                CallGeneric(7),
                                 StLoc(2),
                                 MoveLoc(3),
                                 MoveLoc(1),
-                                VecPushBack(8),
+                                CallGeneric(8),
                                 MoveLoc(2),
                                 Ret,
                             ],
@@ -8858,6 +9396,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -8874,6 +9413,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
@@ -9045,6 +9585,34 @@ ExecCoverageMapWithModules {
                 },
                 FunctionInstantiation {
                     handle: FunctionHandleIndex(7),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(9),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(10),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(4),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(8),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(1),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(14),
+                    type_parameters: SignatureIndex(13),
+                },
+                FunctionInstantiation {
+                    handle: FunctionHandleIndex(5),
                     type_parameters: SignatureIndex(13),
                 },
             ],
@@ -9234,6 +9802,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(0),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9248,13 +9817,13 @@ ExecCoverageMapWithModules {
                                 Branch(12),
                                 CopyLoc(0),
                                 MutBorrowLoc(1),
-                                VecPopBack(13),
-                                VecPushBack(13),
+                                CallGeneric(2),
+                                CallGeneric(3),
                                 Branch(2),
                                 MoveLoc(0),
                                 Pop,
                                 MoveLoc(1),
-                                VecUnpack(13, 0),
+                                CallGeneric(4),
                                 Ret,
                             ],
                         },
@@ -9263,18 +9832,21 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(1),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(2),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(3),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9283,7 +9855,7 @@ ExecCoverageMapWithModules {
                                 LdU64(0),
                                 StLoc(2),
                                 CopyLoc(0),
-                                VecLen(13),
+                                CallGeneric(5),
                                 StLoc(3),
                                 CopyLoc(2),
                                 CopyLoc(3),
@@ -9292,7 +9864,7 @@ ExecCoverageMapWithModules {
                                 Branch(28),
                                 CopyLoc(0),
                                 CopyLoc(2),
-                                VecImmBorrow(13),
+                                CallGeneric(6),
                                 CopyLoc(1),
                                 Eq,
                                 BrTrue(17),
@@ -9321,18 +9893,21 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(4),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(5),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(6),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9341,7 +9916,7 @@ ExecCoverageMapWithModules {
                                 LdU64(0),
                                 StLoc(2),
                                 CopyLoc(0),
-                                VecLen(13),
+                                CallGeneric(5),
                                 StLoc(3),
                                 CopyLoc(2),
                                 CopyLoc(3),
@@ -9350,7 +9925,7 @@ ExecCoverageMapWithModules {
                                 Branch(29),
                                 CopyLoc(0),
                                 CopyLoc(2),
-                                VecImmBorrow(13),
+                                CallGeneric(6),
                                 CopyLoc(1),
                                 Eq,
                                 BrTrue(17),
@@ -9381,13 +9956,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(7),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(1),
                             code: [
                                 MoveLoc(0),
-                                VecLen(13),
+                                CallGeneric(5),
                                 LdU64(0),
                                 Eq,
                                 Ret,
@@ -9398,24 +9974,28 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(8),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(9),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(10),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(11),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9423,7 +10003,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 CopyLoc(0),
                                 FreezeRef,
-                                VecLen(13),
+                                CallGeneric(5),
                                 StLoc(4),
                                 CopyLoc(1),
                                 CopyLoc(4),
@@ -9454,10 +10034,10 @@ ExecCoverageMapWithModules {
                                 MoveLoc(3),
                                 MoveLoc(2),
                                 CopyLoc(1),
-                                VecSwap(13),
+                                CallGeneric(7),
                                 Branch(17),
                                 MoveLoc(0),
-                                VecPopBack(13),
+                                CallGeneric(2),
                                 Ret,
                             ],
                         },
@@ -9466,6 +10046,7 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(12),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9473,7 +10054,7 @@ ExecCoverageMapWithModules {
                             code: [
                                 CopyLoc(0),
                                 FreezeRef,
-                                VecLen(13),
+                                CallGeneric(5),
                                 StLoc(3),
                                 CopyLoc(3),
                                 LdU64(0),
@@ -9497,7 +10078,7 @@ ExecCoverageMapWithModules {
                                 CopyLoc(0),
                                 CopyLoc(2),
                                 CopyLoc(1),
-                                VecSwap(13),
+                                CallGeneric(7),
                                 MoveLoc(2),
                                 LdU64(1),
                                 Add,
@@ -9517,16 +10098,17 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(13),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
                             locals: SignatureIndex(8),
                             code: [
-                                VecPack(13, 0),
+                                CallGeneric(8),
                                 StLoc(1),
                                 MutBorrowLoc(1),
                                 MoveLoc(0),
-                                VecPushBack(13),
+                                CallGeneric(3),
                                 MoveLoc(1),
                                 Ret,
                             ],
@@ -9536,12 +10118,14 @@ ExecCoverageMapWithModules {
                 FunctionDefinition {
                     function: FunctionHandleIndex(14),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: None,
                 },
                 FunctionDefinition {
                     function: FunctionHandleIndex(15),
                     visibility: Public,
+                    is_entry: false,
                     acquires_global_resources: [],
                     code: Some(
                         CodeUnit {
@@ -9558,16 +10142,16 @@ ExecCoverageMapWithModules {
                                 Abort,
                                 CopyLoc(0),
                                 FreezeRef,
-                                VecLen(13),
+                                CallGeneric(5),
                                 LdU64(1),
                                 Sub,
                                 StLoc(2),
                                 CopyLoc(0),
                                 MoveLoc(1),
                                 MoveLoc(2),
-                                VecSwap(13),
+                                CallGeneric(7),
                                 MoveLoc(0),
-                                VecPopBack(13),
+                                CallGeneric(2),
                                 Ret,
                             ],
                         },

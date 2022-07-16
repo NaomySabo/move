@@ -303,7 +303,10 @@ impl SandboxCommand {
                 handle_generate_commands(cmd, &state)
             }
             SandboxCommand::Fuzzer {use_temp_dir, module} => sandbox::commands::fuzzer(
-                &move_args.package_path,
+                move_args
+                    .package_path
+                    .as_deref()
+                    .unwrap_or_else(|| Path::new(".")),
                 &std::env::current_exe()?,
                 *use_temp_dir,
                 &module
