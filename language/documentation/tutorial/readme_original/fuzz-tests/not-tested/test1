@@ -1,0 +1,2 @@
+sandbox publish
+sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x6C5BEAF5D3FBA92D4EE8AB8146831CCB -v unpublish

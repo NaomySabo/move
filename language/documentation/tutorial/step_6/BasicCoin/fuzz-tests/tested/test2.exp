@@ -1,21 +1,21 @@
 Command `sandbox publish`:
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 15324898428023963382 -v setup_and_mint`:
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xB56982FCEAF6B87DE12E6BF3BF28FEE7 --args 10471647352579929704 -v setup_and_mint`:
 Changed resource(s) under 1 address(es):
-  Changed 1 resource(s) under address A84FF56B95F87B8FDAD9E9F14C8CC6C7:
-    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [246, 126, 79, 237, 236, 249, 172, 212] (wrote 82 bytes)
+  Changed 1 resource(s) under address B56982FCEAF6B87DE12E6BF3BF28FEE7:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [104, 182, 175, 55, 201, 195, 82, 145] (wrote 82 bytes)
       key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
           coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
-              value: 15324898428023963382
+              value: 10471647352579929704
           }
       }
 Wrote 82 bytes of resource ID's and data
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xF8FD11A3BA95E4EE8918456C68CA179B --args 15811630699792834475 -v setup_and_mint`:
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xE618BC8AADFE1312FE23ED15FBAFE258 --args 10032507486942512966 -v setup_and_mint`:
 Changed resource(s) under 1 address(es):
-  Changed 1 resource(s) under address F8FD11A3BA95E4EE8918456C68CA179B:
-    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [171, 31, 208, 12, 89, 50, 110, 219] (wrote 82 bytes)
+  Changed 1 resource(s) under address E618BC8AADFE1312FE23ED15FBAFE258:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [70, 199, 167, 165, 103, 160, 58, 139] (wrote 82 bytes)
       key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
           coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
-              value: 15811630699792834475
+              value: 10032507486942512966
           }
       }
 Wrote 82 bytes of resource ID's and data

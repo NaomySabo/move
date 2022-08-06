@@ -8,12 +8,12 @@ module NamedAddr::MyOddCoin {
 
     const ENOT_ODD: u64 = 0;
 
-    public(script) fun setup_and_mint(account: &signer, amount: u64) {
+    public entry fun setup_and_mint(account: &signer, amount: u64) {
         BasicCoin::publish_balance<MyOddCoin>(account);
         BasicCoin::mint<MyOddCoin>(signer::address_of(account), amount, MyOddCoin {});
     }
 
-    public fun transfer(from: &signer, to: address, amount: u64) {
+    public entry fun transfer(from: &signer, to: address, amount: u64) {
         // amount must be odd.
         assert!(amount % 2 == 1, ENOT_ODD);
         BasicCoin::transfer<MyOddCoin>(from, to, amount, MyOddCoin {});

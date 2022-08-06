@@ -1,0 +1,10 @@
+[package]
+name = "concretize_read_write_set_smoke"
+version = "0.0.0"
+
+[dependencies]
+MoveStdlib = { git = "https://github.com/move-language/move.git", subdir = "language/move-stdlib", rev = "main" }
+DPNFramework = { local = "../../examples/diem-framework/move-packages/DPN" }
+
+[addresses]
+std =  "0x1"

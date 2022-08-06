@@ -232,8 +232,8 @@ module DiemFramework::Genesis {
         requires DiemTimestamp::is_genesis();
     }
 
-    #[test_only]
-    public fun setup(dr_account: &signer, tc_account: &signer) {
+//    #[test_only]
+    public entry fun setup(dr_account: &signer, tc_account: &signer) {
         initialize_internal(
             dr_account,
             tc_account,

@@ -1,27 +1,41 @@
 Command `sandbox publish`:
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 15324898428023963382 -v setup_and_mint`:
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xB56982FCEAF6B87DE12E6BF3BF28FEE7 --args 10471647352579929704 -v setup_and_mint`:
 Changed resource(s) under 1 address(es):
-  Changed 1 resource(s) under address A84FF56B95F87B8FDAD9E9F14C8CC6C7:
-    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [246, 126, 79, 237, 236, 249, 172, 212] (wrote 82 bytes)
+  Changed 1 resource(s) under address B56982FCEAF6B87DE12E6BF3BF28FEE7:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [104, 182, 175, 55, 201, 195, 82, 145] (wrote 82 bytes)
       key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
           coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
-              value: 15324898428023963382
+              value: 10471647352579929704
           }
       }
 Wrote 82 bytes of resource ID's and data
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 14893335703511148277 -v transfer`:
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xE618BC8AADFE1312FE23ED15FBAFE258 --args 10032507486942512966 -v setup_and_mint`:
 Changed resource(s) under 1 address(es):
-  Changed 1 resource(s) under address A84FF56B95F87B8FDAD9E9F14C8CC6C7:
-    Changed type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [246, 126, 79, 237, 236, 249, 172, 212] (wrote 82 bytes)
-         key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
-             coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
-                 value: 15324898428023963382
-             }
-         }
+  Changed 1 resource(s) under address E618BC8AADFE1312FE23ED15FBAFE258:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [70, 199, 167, 165, 103, 160, 58, 139] (wrote 82 bytes)
+      key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
+          coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
+              value: 10032507486942512966
+          }
+      }
 Wrote 82 bytes of resource ID's and data
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 14934769649189731108 -v transfer`:
-Execution aborted with code 0 in module 0000000000000000000000000000CAFE::MyOddCoin.
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0xA84FF56B95F87B8FDAD9E9F14C8CC6C7 --args 12212649839095266824 -v setup_and_mint`:
-Execution aborted with code 518 in module 0000000000000000000000000000CAFE::BasicCoin.
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0x7A729231435BA33CDFA47576199F8D66 --args 0x7A729231435BA33CDFA47576199F8D66 18446744073709551614 -v transfer`:
-Execution aborted with code 0 in module 0000000000000000000000000000CAFE::MyOddCoin.
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0x8226B9DF1BC75419C86D4F5A1BD121E5 --args 4796532027358688705 -v setup_and_mint`:
+Changed resource(s) under 1 address(es):
+  Changed 1 resource(s) under address 8226B9DF1BC75419C86D4F5A1BD121E5:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [193, 181, 127, 60, 119, 180, 144, 66] (wrote 82 bytes)
+      key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
+          coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
+              value: 4796532027358688705
+          }
+      }
+Wrote 82 bytes of resource ID's and data
+Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/MyOddCoin.mv --signers 0x51B9BE8A5E7423638197F41DA999EA7F --args 13192937509752195776 -v setup_and_mint`:
+Changed resource(s) under 1 address(es):
+  Changed 1 resource(s) under address 51B9BE8A5E7423638197F41DA999EA7F:
+    Added type 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin>: [192, 202, 180, 20, 196, 186, 22, 183] (wrote 82 bytes)
+      key 0xcafe::BasicCoin::Balance<0xcafe::MyOddCoin::MyOddCoin> {
+          coin: store 0xcafe::BasicCoin::Coin<0xcafe::MyOddCoin::MyOddCoin> {
+              value: 13192937509752195776
+          }
+      }
+Wrote 82 bytes of resource ID's and data

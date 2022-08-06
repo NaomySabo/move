@@ -147,12 +147,14 @@ pub enum SandboxCommand {
         // By default, the directory containing the `args.txt` will be the workspace.
         #[clap(long = "use-temp-dir")]
         use_temp_dir: bool,
-        // Show coverage information after tests are done.
-        // By default, coverage will not be tracked nor shown.
-        // #[clap(long = "track-cov")]
-        // track_cov: bool,
         #[clap(name = "module", parse(try_from_str))]
         module: String,
+        // Flag to indicate if a DPN module is being targeted
+        #[clap(long = "is-dpn")]
+        is_dpn: bool,
+        #[clap(name = "init-script", parse(try_from_str))]
+        // Initialize the script
+        init_script: String
     }
 }
 
@@ -302,14 +304,16 @@ impl SandboxCommand {
                     .prepare_state(storage_dir)?;
                 handle_generate_commands(cmd, &state)
             }
-            SandboxCommand::Fuzzer {use_temp_dir, module} => sandbox::commands::fuzzer(
+            SandboxCommand::Fuzzer {use_temp_dir, module, is_dpn, init_script} => sandbox::commands::fuzzer(
                 move_args
                     .package_path
                     .as_deref()
                     .unwrap_or_else(|| Path::new(".")),
                 &std::env::current_exe()?,
                 *use_temp_dir,
-                &module
+                &module,
+                is_dpn,
+                &init_script
             ),
         }
     }
