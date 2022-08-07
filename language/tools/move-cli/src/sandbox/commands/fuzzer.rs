@@ -19,7 +19,7 @@ use move_package::{
 use std::{
     collections::{BTreeMap, HashMap},
     env,
-    fs::{self, File, OpenOptions, Permissions},
+    fs::{self, File, OpenOptions},
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
     process::Command, };
@@ -29,7 +29,6 @@ use sandbox::commands::test::{
     simple_copy_dir,
 };
 use coinflip;
-use itertools::Itertools;
 use tempfile::tempdir;
 use move_binary_format::internals::ModuleIndex;
 use move_binary_format::file_format::SignatureToken::{Bool, Signer, U128, U8, U64, Address, Vector};
@@ -674,50 +673,45 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
 pub fn fuzzer(
     args_path: &Path, cli_binary: &Path, use_temp_dir: bool,
     // This is the name of the file whose functions are to be tested
-    test_name: &str, is_dpn: &bool, init_script: &str,
+    test_name: &str, is_dpn: &bool, init_script: &str, resume: &bool
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
     // I saw the first crate when looking online as well, but I skipped it because it I don't think it supports a priority queue. However, I realize now that I can probably make a work around, but I would need my current queue and QueueFile. I would maintain my normal priority queue in my code, that has the seed (test name) and its associated priority. After each round of fuzzing, I can reprint my priority queue using QueueFile as well, and treat the seed and its priority as separate elements in the QueueFile. Since it's FIFO, as long as I print the priority after the seed, when restoring the queue after the user resumes, I can read every two elements from the QueueFile, taking the first element as the seed name and the second as the priority, when recreating my priority queue.
 
+    if *resume {
+        let mut qf = QueueFile::open("example.qf")
+            .expect("cannot open queue file");
 
-    let mut qf = QueueFile::open("example.qf")
-        .expect("cannot open queue file");
+        let mut priority_queue = PriorityQueue::new();
 
-    qf.add("TEST #1".as_bytes()).expect("add failed");
-    qf.add("1202".as_bytes()).expect("add failed");
-    qf.add("TEST #2".as_bytes()).expect("add failed");
-    qf.add("1111".as_bytes()).expect("add failed");
-    qf.add("TEST #3".as_bytes()).expect("add failed");
-    qf.add("888".as_bytes()).expect("add failed");
+        let mut seed: String = "".to_owned();
 
-    let mut priority_queue = PriorityQueue::new();
-
-    let mut seed: String = "".to_owned();
-
-    for (index, elem) in qf.iter().enumerate() {
-        println!(
-            "{}: {} bytes -> {}", index, elem.len(), std::str::from_utf8(&elem).unwrap_or("<invalid>")
-        );
-        if index % 2 == 0 {
-            seed = std::str::from_utf8(&elem).unwrap_or("<invalid>").to_owned();
-        } else {
-            let priority: u64 = (std::str::from_utf8(&elem).unwrap_or("<invalid>"))
-                .parse::<u64>().expect("not a number").to_owned();
-            priority_queue.push(seed.clone(), priority);
+        for (index, elem) in qf.iter().enumerate() {
+            println!(
+                "{}: {} bytes -> {}", index, elem.len(), std::str::from_utf8(&elem).unwrap_or("<invalid>")
+            );
+            if index % 2 == 0 {
+                seed = std::str::from_utf8(&elem).unwrap_or("<invalid>").to_owned();
+            } else {
+                let priority: u64 = (std::str::from_utf8(&elem).unwrap_or("<invalid>"))
+                    .parse::<u64>().expect("not a number").to_owned();
+                priority_queue.push(seed.clone(), priority);
+            }
         }
+
+        println!("Priority Queue is {:#?}", priority_queue);
     }
 
-    println!("Priority Queue is {:#?}", priority_queue);
-
     // **********************************************
-    println!("new vars {:#?} {:#?}", is_dpn, init_script);
     // let start = start_fuzz(args_path, cli_binary, use_temp_dir, init_script).unwrap();
     // for s in start.iter() {
     //     println!("start_script {:#?} {:#?} {:#?} {:#?}", s.mod_addr, s.mod_name, s.func_name, s.params);
     // }
     // **********************************************
-    setup_fuzz_dirs().expect("Could not set-up test directories");
+    if !*resume {
+        setup_fuzz_dirs().expect("Could not set-up test directories");
+    }
 
     // Returns an array of function templates (module name, function name,
     // parameters and module address)
@@ -792,20 +786,6 @@ pub fn fuzzer(
     let mut tests_ran: HashSet<String> = HashSet::new();
 
     let mut b = 0;
-    // let mut file = File::create("reaonly")?;
-    //
-    // writeln!(file, "sandbox publish --bundle --with-deps")
-    //     .expect("Failed to write to args file");
-    // let metadata = file.metadata()?;
-    // let mut permissions = metadata.permissions();
-    // permissions.set_readonly(true);
-    // file.set_permissions(permissions)?;
-    //
-    // assert_eq!(true, file.metadata()?.permissions().readonly());
-    // fs::OpenOptions::new()
-    //     .create(true)
-    //     .write(false)
-    //     .open("somefile").expect("TODO: panic message");
     while b < 500
     // && !pq.is_empty()
     {
@@ -819,33 +799,27 @@ pub fn fuzzer(
 
             for func in template.iter() {
                 let new_test = format!("test{}", count);
-                let mut outputfile = File::create(&new_test)?;
+                let mut output_file = File::create(&new_test)?;
 
                 // First line in each test should be "sandbox publish"
-                //TODO
                 if *is_dpn {
-                    writeln!(outputfile, "sandbox publish --bundle --with-deps")
+                    writeln!(output_file, "sandbox publish --bundle --with-deps")
                         .expect("Failed to write to args file");
-                    writeln!(outputfile, "sandbox run sources/start.move --signers {:#} {:#}",
+                    //TODO: REPLACE WITH INITIAL COMMANDS
+                    writeln!(output_file, "sandbox run sources/start.move --signers {:#} {:#}",
                              &signers[0], &signers[1])
                         .expect("Failed to write script execution");
                 } else {
-                    writeln!(outputfile, "sandbox publish").expect("Failed to write to args file");
+                    writeln!(output_file, "sandbox publish").expect("Failed to write to args file");
                 }
 
                 // This will write some tests into our testfile
                 let mut output =
-                    fuzz_inputs(func, &outputfile, &signers, is_dpn, &type_arg_pool).unwrap();
+                    fuzz_inputs(func, &output_file, &signers, is_dpn, &type_arg_pool).unwrap();
                 // Add any new signers or addresses to our store
                 if output.0 {
                     signers.append(&mut output.1)
                 }
-
-                let metadata = outputfile.metadata()?;
-                let mut permissions = metadata.permissions();
-                permissions.set_readonly(true);
-                outputfile.set_permissions(permissions)?;
-                // assert_eq!(true, permissions.readonly());
                 // Add the test to our queue
                 test_paths.push(new_test);
                 count += 1;
@@ -1049,22 +1023,38 @@ pub fn fuzzer(
             }
             None => println!("No test found."),
         }
+
+        // Backup our queue, in case of resume
+        let mut new_qf = QueueFile::open("temp.qf")
+            .expect("cannot open queue file");
+        for i in pq.iter() {
+
+
+            new_qf.add( i.0.as_bytes()).expect("add failed");
+            new_qf.add(i.1.to_string().as_bytes()).expect("add failed");
+            println!("{:#?}", i.0);
+        }
+        if Path::new("example.qf").exists() {
+            fs::remove_file("example.qf")?;
+        }
+        fs::rename("temp.qf", "example.qf").expect("TODO: panic message");
     }
 
     // Begin cleanup by moving the created tests into their respective folders
-    for i in &pq {
-        let exp_name = i.0.clone().to_owned() + ".exp";
-        // If this test was ran, it would have an .exp with its name
-        let tested = Path::new(&exp_name).exists();
-        // Move the tests that didn't give an error either to the tested or not-tested directories
-        if tested {
-            move_tests(i.0, "RAN".to_string()).
-                expect("Failed to move test to the tested folder");
-        } else {
-            move_tests(i.0, "NOT_RAN".to_string()).
-                expect("Failed to move test to the not-tested folder");
-        }
-    }
+    //TODO: FIGURE THIS OUT
+    // for i in &pq {
+    //     let exp_name = i.0.clone().to_owned() + ".exp";
+    //     // If this test was ran, it would have an .exp with its name
+    //     let tested = Path::new(&exp_name).exists();
+    //     // Move the tests that didn't give an error either to the tested or not-tested directories
+    //     if tested {
+    //         move_tests(i.0, "RAN".to_string()).
+    //             expect("Failed to move test to the tested folder");
+    //     } else {
+    //         move_tests(i.0, "NOT_RAN".to_string()).
+    //             expect("Failed to move test to the not-tested folder");
+    //     }
+    // }
 
     // if any test fails, bail
     let test_failed = test_total.checked_sub(test_passed).unwrap();
@@ -1078,6 +1068,12 @@ pub fn fuzzer(
         module_summary.summarize_human(&mut summary_writer, true)?;
     }
     println!("deque is {:#?}", pq);
+    println!("new vars {:#?} {:#?} {:#?}", is_dpn, init_script, resume);
 
     Ok(())
+
 }
+
+//TODO: FILTER STRUCTURES AND LEAVE NOTE
+//TODO: let user specify the start command
+
