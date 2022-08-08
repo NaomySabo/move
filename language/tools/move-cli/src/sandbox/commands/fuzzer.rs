@@ -7,7 +7,7 @@ use crate::{sandbox::utils::module, DEFAULT_BUILD_DIR, DEFAULT_STORAGE_DIR, sand
 use move_command_line_common::{
     env::read_bool_env_var,
     files::{path_to_string},
-    testing::{format_diff, read_env_update_baseline, EXP_EXT},
+    testing::{format_diff, EXP_EXT},
 };
 use move_compiler::command_line::COLOR_MODE_ENV_VAR;
 use move_coverage::summary::{summarize_inst_cov_by_module};
@@ -277,7 +277,7 @@ pub fn run_one(
     }
 
     // compare output and exp_file
-    let update_baseline = read_env_update_baseline();
+    let update_baseline = true;
     let exp_path = args_path.with_extension(EXP_EXT);
     if update_baseline {
         fs::write(exp_path, &output)?;
@@ -703,7 +703,6 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 pub fn fuzzer(
     args_path: &Path, cli_binary: &Path, use_temp_dir: bool,
     // This is the name of the file whose functions are to be tested
@@ -712,11 +711,15 @@ pub fn fuzzer(
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
 
+    // This queue holds the names of the test files. Tests will be popped from this queue, ran,
+    // and if they receive positive feedback, then a mutated version will be pushed to the back
+    // of the queue. Once ran, all tests will be moved to the "used" test directory under the
+    // fuzz-tests folder that is generated when running the fuzz cli command.
+    let mut pq = PriorityQueue::new();
+
     if *resume {
         let mut qf = QueueFile::open("example.qf")
             .expect("cannot open queue file");
-
-        let mut priority_queue = PriorityQueue::new();
 
         let mut seed: String = "".to_owned();
 
@@ -726,11 +729,11 @@ pub fn fuzzer(
             } else {
                 let priority: u64 = (std::str::from_utf8(&elem).unwrap_or("<invalid>"))
                     .parse::<u64>().expect("not a number").to_owned();
-                priority_queue.push(seed.clone(), priority);
+                pq.push(seed.clone(), priority);
             }
         }
 
-        println!("Priority Queue is {:#?}", priority_queue);
+        println!("Priority Queue is {:#?}", pq);
     }
 
     // **********************************************
@@ -753,53 +756,58 @@ pub fn fuzzer(
     // This will be used to keep track of the number of tests created
     let mut count = 0;
     if *resume {
-        count = init_info.3
+        count = init_info.3 + 1;
+        for (_, module_summary) in cov_info.clone().into_module_summaries() {
+            for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
+                if !fn_summary.fn_is_native {
+                    println!("fun {} \t\t% coverage: {:.2}", fn_name, fn_summary.percent_coverage());
+                }
+            }
+        }
+        println!("\n");
     }
 
     // for str in &type_arg_pool {
     //     println!("STRUCT IS {:#}", &str)
     // }
 
+    println!("COUNT IS {:#?}", count);
     // This will keep track of any signers used so far
     // TODO: Don't have hardcoded ones
     // let mut signers: Vec<String> = Vec::new();
     let mut signers: Vec<String> = vec!["0xA550C18".to_string(), "0xB1E55ED".to_string(),
                                         "0xDD".to_string(), "0xA".to_string(), "0xb".to_string()];
 
-    // This queue holds the names of the test files. Tests will be popped from this queue, ran,
-    // and if they receive positive feedback, then a mutated version will be pushed to the back
-    // of the queue. Once ran, all tests will be moved to the "used" test directory under the
-    // fuzz-tests folder that is generated when running the fuzz cli command.
-    let mut pq = PriorityQueue::new();
-
     // For each of the eligible functions in the library, push an initial test for it to the queue
-    for func in template.iter() {
-        let new_test = format!("test{}", count);
-        let mut output = File::create(&new_test)?;
+    if !*resume {
+        for func in template.iter() {
+            let new_test = format!("test{}", count);
+            let mut output = File::create(&new_test)?;
 
-        // First line in each test should be "sandbox publish", with different flags depending on
-        // if it's run through the Move cli, or the Diem cli.
-        if *is_dpn {
-            writeln!(output, "sandbox publish --bundle --with-deps")
-                .expect("Failed to write to args file");
-            // For df-cli (targeting the DPN), write the set-up command to the test file
-            writeln!(output,
-                     "sandbox run {:#} --signers {:#} {:#}", init_script, &signers[0], &signers[1])
-                .expect("Failed to write script execution");
-        } else {
-            writeln!(output, "sandbox publish").expect("Failed to write to args file");
-        }
+            // First line in each test should be "sandbox publish", with different flags depending on
+            // if it's run through the Move cli, or the Diem cli.
+            if *is_dpn {
+                writeln!(output, "sandbox publish --bundle --with-deps")
+                    .expect("Failed to write to args file");
+                // For df-cli (targeting the DPN), write the set-up command to the test file
+                writeln!(output,
+                         "sandbox run {:#} --signers {:#} {:#}", init_script, &signers[0], &signers[1])
+                    .expect("Failed to write script execution");
+            } else {
+                writeln!(output, "sandbox publish").expect("Failed to write to args file");
+            }
 
-        // This will write some tests into our testfile
-        let mut output =
-            fuzz_inputs(func, &output, &signers, is_dpn, &type_arg_pool).unwrap();
-        // Add any new signers or addresses to our store
-        if output.0 {
-            signers.append(&mut output.1)
+            // This will write some tests into our testfile
+            let mut output =
+                fuzz_inputs(func, &output, &signers, is_dpn, &type_arg_pool).unwrap();
+            // Add any new signers or addresses to our store
+            if output.0 {
+                signers.append(&mut output.1)
+            }
+            // Add the test to our queue
+            pq.push(new_test, 100);
+            count += 1;
         }
-        // Add the test to our queue
-        pq.push(new_test, 100);
-        count += 1;
     }
 
     // Random number generator to choose which function
@@ -840,14 +848,30 @@ pub fn fuzzer(
             }
         }
         println!("restored covered is {:#?}", covered);
+
+        // Then, also add any tests already ran in the tests_ran hash set
+        let ran_path = "./fuzz-tests/tested";
+        if Path::new(ran_path).exists() {
+            for entry in fs::read_dir(&ran_path)? {
+                let file = entry?;
+                let file_name = file.path().into_os_string().into_string().unwrap();
+                let len = file_name.chars().count();
+                let ending = &file_name[len - 3..len];
+                // println!("END IS {:#?}", ending);
+                if ending != "exp" {
+                    let test_name = &file_name[20..len];
+                    tests_ran.insert(test_name.to_string());
+                    // println!("TESTNAME IS {:#?}", test_name);
+                }
+                // println!("file is: {:#?} and path is: {:#?}", file, path);
+            }
+        }
     }
 
     let mut b = 0;
     while b < 500
     // && !pq.is_empty()
     {
-        println!("round {}", b);
-
         if pq.is_empty() {
             if b > 500 {
                 break;
@@ -898,7 +922,8 @@ pub fn fuzzer(
                     count += 1;
 
                     // Copy the calls in the old test to the new test
-                    fs::copy(&test_path.0, &new_test)
+                    let path = "./fuzz-tests/tested/".to_owned() + &test_path.0;
+                    fs::copy(path, &new_test)
                         .expect("Could not create new test from old test");
 
                     let file = OpenOptions::new().write(true).append(true)
@@ -1052,6 +1077,10 @@ pub fn fuzzer(
                                     }
                                     None => {}
                                 }
+
+                                // Move the test to the tested directory
+                                move_tests(&test_path.0, "RAN".to_string()).
+                                    expect("Failed to move test to the tested folder");
                             }
                             println!("{} test(s) ran.", test_passed);
                         }
@@ -1083,26 +1112,24 @@ pub fn fuzzer(
         for i in pq.iter() {
             new_qf.add(i.0.as_bytes()).expect("add failed");
             new_qf.add(i.1.to_string().as_bytes()).expect("add failed");
-            // println!("{:#?}", i.0);
         }
         if Path::new("example.qf").exists() {
             fs::remove_file("example.qf")?;
         }
         fs::rename("temp.qf", "example.qf").expect("TODO: panic message");
-        // println!("covered is {:#?}", covered);
     }
 
     // Begin cleanup by moving the created tests into their respective folders
-    //TODO: FIGURE THIS OUT
     // for i in &pq {
     //     let exp_name = i.0.clone().to_owned() + ".exp";
     //     // If this test was ran, it would have an .exp with its name
     //     let tested = Path::new(&exp_name).exists();
     //     // Move the tests that didn't give an error either to the tested or not-tested directories
-    //     if tested {
-    //         move_tests(i.0, "RAN".to_string()).
-    //             expect("Failed to move test to the tested folder");
-    //     } else {
+    //     // if tested {
+    //     //     move_tests(i.0, "RAN".to_string()).
+    //     //         expect("Failed to move test to the tested folder");
+    //     // } else {
+    //     if !tested {
     //         move_tests(i.0, "NOT_RAN".to_string()).
     //             expect("Failed to move test to the not-tested folder");
     //     }
@@ -1119,12 +1146,14 @@ pub fn fuzzer(
     for (_, module_summary) in cov_info.into_module_summaries() {
         module_summary.summarize_human(&mut summary_writer, true)?;
     }
-    println!("deque is {:#?}", pq);
-    println!("new vars {:#?} {:#?} {:#?}", is_dpn, init_script, resume);
 
     Ok(())
 }
 
 //TODO: FILTER STRUCTURES AND LEAVE NOTE
 //TODO: let user specify the start command
+
+
+// TODO: TEST CREATED BUT NOT ADDED TO QUEUE --> SKIPPED
+// TODO: TEST GIVES ERROR BUT NOT REMOVED FROM QUEUE --> if ran it will give error again and then be removed
 
