@@ -22,7 +22,8 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{self, BufRead, Write},
     path::{Path, PathBuf},
-    process::Command, };
+    process::Command,
+};
 use std::collections::HashSet;
 use sandbox::commands::test::{
     copy_deps,
@@ -65,7 +66,7 @@ const MOVE_VM_TRACING_ENV_VAR_NAME: &str = "MOVE_VM_TRACE";
 /// if --track-cov is set. If --track-cov is not set, then no trace file will
 /// be produced.
 const DEFAULT_TRACE_FILE: &str = "trace";
-const DEFAULT_GLOBAL_TRACE_FILE: &str = "global_trace";
+const DEFAULT_GLOBAL_TRACE_PATH: &str = "global-trace";
 
 pub struct TestTemplate {
     mod_addr: AccountAddress,
@@ -75,10 +76,10 @@ pub struct TestTemplate {
     type_args: bool,
 }
 
-fn print_type_of<T>(_: &T) -> &str {
-    println!("{}", std::any::type_name::<T>());
-    return std::any::type_name::<T>();
-}
+// fn print_type_of<T>(_: &T) -> &str {
+//     println!("{}", std::any::type_name::<T>());
+//     return std::any::type_name::<T>();
+// }
 
 fn collect_coverage(
     trace_file: &Path,
@@ -301,7 +302,7 @@ pub fn start_fuzz(
     use_temp_dir: bool,
     test_name: &str,
     resume: bool,
-) -> Result<(Vec<TestTemplate>, Vec<String>, ExecCoverageMapWithModules), anyhow::Error> {
+) -> Result<(Vec<TestTemplate>, Vec<String>, ExecCoverageMapWithModules, u64), anyhow::Error> {
     let cli_binary_path = cli_binary.canonicalize()?;
 
     let temp_dir = if use_temp_dir {
@@ -332,7 +333,7 @@ pub fn start_fuzz(
         command
     };
 
-    if (storage_dir.exists() || build_output.exists()) {
+    if storage_dir.exists() || build_output.exists() {
         // need to clean before testing
         cli_command_template()
             .arg("sandbox")
@@ -443,11 +444,11 @@ pub fn start_fuzz(
     };
 
     let mut cov_info = ExecCoverageMapWithModules::empty();
-    if Path::new(DEFAULT_GLOBAL_TRACE_FILE).exists() && resume {
-        for entry in fs::read_dir("global-trace".to_owned())? {
+    let mut prev_count = 2;
+    if Path::new(DEFAULT_GLOBAL_TRACE_PATH).exists() && resume {
+        for entry in fs::read_dir(DEFAULT_GLOBAL_TRACE_PATH.to_owned())? {
             let file = entry?;
             let path = Some(file.path());
-            println!("path {:#?}", path);
             let prev_cov = match &path {
                 None => None,
                 Some(trace_path) => {
@@ -463,6 +464,7 @@ pub fn start_fuzz(
             if let Some(cov) = prev_cov {
                 cov_info.merge(cov);
             }
+            prev_count += 1;
         }
     }
 
@@ -486,8 +488,7 @@ pub fn start_fuzz(
     if let Some((t, _)) = temp_dir {
         t.close()?;
     }
-
-    Ok((tests, type_arg_pool, cov_info))
+    Ok((tests, type_arg_pool, cov_info, prev_count))
 }
 
 pub fn get_signer() -> String {
@@ -678,7 +679,7 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     let error_path = Path::new("fuzz-tests/tests-error");
     let ran_path = Path::new("fuzz-tests/tested");
     let not_ran_path = Path::new("fuzz-tests/not-tested");
-    let global_trace = Path::new("global-trace");
+    let global_trace = Path::new(DEFAULT_GLOBAL_TRACE_PATH);
 
     fs::create_dir(global_trace).expect("Failed to create fuzz tests directory");
     if let Some(p) = global_trace.parent() { fs::create_dir_all(p)? };
@@ -711,17 +712,6 @@ pub fn fuzzer(
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
 
-    if !Path::new(DEFAULT_GLOBAL_TRACE_FILE).exists() {
-        File::create(DEFAULT_GLOBAL_TRACE_FILE)?;
-    }
-
-    let mut global_cov = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(DEFAULT_GLOBAL_TRACE_FILE)
-        .unwrap();
-
-
     if *resume {
         let mut qf = QueueFile::open("example.qf")
             .expect("cannot open queue file");
@@ -731,9 +721,6 @@ pub fn fuzzer(
         let mut seed: String = "".to_owned();
 
         for (index, elem) in qf.iter().enumerate() {
-            println!(
-                "{}: {} bytes -> {}", index, elem.len(), std::str::from_utf8(&elem).unwrap_or("<invalid>")
-            );
             if index % 2 == 0 {
                 seed = std::str::from_utf8(&elem).unwrap_or("<invalid>").to_owned();
             } else {
@@ -763,13 +750,15 @@ pub fn fuzzer(
     let template = init_info.0;
     let type_arg_pool = init_info.1;
     let mut cov_info = init_info.2;
-
-    for str in &type_arg_pool {
-        println!("STRUCT IS {:#}", &str)
-    }
-
     // This will be used to keep track of the number of tests created
     let mut count = 0;
+    if *resume {
+        count = init_info.3
+    }
+
+    // for str in &type_arg_pool {
+    //     println!("STRUCT IS {:#}", &str)
+    // }
 
     // This will keep track of any signers used so far
     // TODO: Don't have hardcoded ones
@@ -817,49 +806,47 @@ pub fn fuzzer(
     let between = rand::distributions::Uniform::from(0..template.len());
     let mut rng = rand::thread_rng();
 
-
-    // path where we will run the binary
-    // let exe_dir = args_path.parent().unwrap();
-    // let temp_dir = if use_temp_dir {
-    //     // symlink everything in the exe_dir into the temp_dir
-    //     let dir = tempdir()?;
-    //     let padded_dir = copy_deps(dir.path(), exe_dir)?;
-    //     simple_copy_dir(&padded_dir, exe_dir)?;
-    //     Some((dir, padded_dir))
-    // } else {
-    //     None
-    // };
-    // let wks_dir = temp_dir.as_ref().map_or(exe_dir, |t| &t.1);
-    // let global_trace =  Some(wks_dir.canonicalize()?.join(DEFAULT_GLOBAL_TRACE_FILE));
-
-    // if *resume && Path::new("global_trace").exists()  {
-    //     let prev_cov = match &global_trace {
-    //         None => None,
-    //         Some(trace_path) => {
-    //             if trace_path.exists() {
-    //                 Some(collect_coverage(trace_path, &build_output)?)
-    //             } else {
-    //                 let file_path = PathBuf::from(trace_path);
-    //                 fs::write(file_path, "").expect("failed to write coverage");
-    //                 Some(collect_coverage(trace_path, &build_output)?)
-    //             }
-    //         }
-    //     };
-    //     cov_info = prev_cov.unwrap_or(ExecCoverageMapWithModules::empty())
-    // }
-
-
-    // TODO:
     let mut covered: HashMap<String, u64> = HashMap::new();
     // TODO:
     let mut tests_ran: HashSet<String> = HashSet::new();
+
+    let compiled_mods = &cov_info.compiled_modules;
+    // If resuming, reset the covered hashmap, with functions and the number of lines reached
+    // in each one
+    if *resume {
+        for i in &cov_info.module_maps {
+            let module_summary = summarize_inst_cov_by_module(
+                compiled_mods.get(&i.0.0).unwrap(),
+                Some(i.1),
+            );
+
+            for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
+                let mod_func = module_summary.module_name.name().as_str().to_string() + &fn_name.to_string();
+
+                match covered.entry(mod_func.clone()) {
+                    std::collections::hash_map::Entry::Vacant(e) => {
+                        if fn_summary.covered > 0 {
+                            // This means that the current test reached a function that wasn't covered before
+                            e.insert(fn_summary.covered);
+                        }
+                    }
+                    std::collections::hash_map::Entry::Occupied(mut e) => {
+                        // Check if we have more coverage for the function
+                        if fn_summary.covered > *e.get() {
+                            *e.get_mut() = fn_summary.covered;
+                        }
+                    }
+                }
+            }
+        }
+        println!("restored covered is {:#?}", covered);
+    }
 
     let mut b = 0;
     while b < 500
     // && !pq.is_empty()
     {
         println!("round {}", b);
-        // println!("cov nfo {:#?}", cov_info);
 
         if pq.is_empty() {
             if b > 500 {
@@ -899,6 +886,7 @@ pub fn fuzzer(
         b += 1;
         let seed = pq.pop();
         let clone = seed.clone();
+        // let prev_cov = cov_info.clone();
         match seed {
             Some(test_path) => {
                 if tests_ran.contains(&test_path.0) {
@@ -953,6 +941,9 @@ pub fn fuzzer(
                                     expect("Failed to move test to the error folder");
                                 // Remove this test from our queue
                                 println!("{:#?} gave an error", &test_path.0);
+                                // if prev_cov != cov_info {
+                                //     println!("{:#?} had an error, but gave new coverage", &test_path.0);
+                                // }
                                 let compiled_modules =
                                     &cov_info.compiled_modules;
 
@@ -993,7 +984,10 @@ pub fn fuzzer(
 
                                 let compiled_modules = &cov_info.compiled_modules;
                                 let mut new_cov: bool = false;
-
+                                // if prev_cov != cov_info {
+                                //     println!("{:#?} gave new coverage", &test_path.0);
+                                //     new_cov = true;
+                                // }
                                 for i in &cov_info.module_maps {
                                     let module_summary = summarize_inst_cov_by_module(
                                         compiled_modules.get(&i.0.0).unwrap(),
@@ -1089,18 +1083,13 @@ pub fn fuzzer(
         for i in pq.iter() {
             new_qf.add(i.0.as_bytes()).expect("add failed");
             new_qf.add(i.1.to_string().as_bytes()).expect("add failed");
-            println!("{:#?}", i.0);
+            // println!("{:#?}", i.0);
         }
         if Path::new("example.qf").exists() {
             fs::remove_file("example.qf")?;
         }
         fs::rename("temp.qf", "example.qf").expect("TODO: panic message");
-        // fs::copy(DEFAULT_TRACE_FILE, DEFAULT_GLOBAL_TRACE_FILE, ).expect("TODO: panic message");
-        // let mut txt2 = fs::OpenOptions::new()
-        //     .read(true)
-        //     .open(DEFAULT_TRACE_FILE)?;
-        //
-        // let result = io::copy(&mut txt2, &mut global_cov)?;
+        // println!("covered is {:#?}", covered);
     }
 
     // Begin cleanup by moving the created tests into their respective folders
