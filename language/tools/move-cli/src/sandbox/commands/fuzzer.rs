@@ -65,6 +65,7 @@ const MOVE_VM_TRACING_ENV_VAR_NAME: &str = "MOVE_VM_TRACE";
 /// if --track-cov is set. If --track-cov is not set, then no trace file will
 /// be produced.
 const DEFAULT_TRACE_FILE: &str = "trace";
+const DEFAULT_GLOBAL_TRACE_FILE: &str = "global_trace";
 
 pub struct TestTemplate {
     mod_addr: AccountAddress,
@@ -74,10 +75,10 @@ pub struct TestTemplate {
     type_args: bool,
 }
 
-// fn print_type_of<T>(_: &T) -> &str {
-//     println!("{}", std::any::type_name::<T>());
-//     return std::any::type_name::<T>();
-// }
+fn print_type_of<T>(_: &T) -> &str {
+    println!("{}", std::any::type_name::<T>());
+    return std::any::type_name::<T>();
+}
 
 fn collect_coverage(
     trace_file: &Path,
@@ -133,6 +134,7 @@ pub fn run_one(
     args_path: &Path,
     cli_binary: &Path,
     use_temp_dir: bool,
+    count: u64,
 ) -> anyhow::Result<(Option<ExecCoverageMapWithModules>, bool)> {
     let args_file = io::BufReader::new(File::open(args_path)?).lines();
     let cli_binary_path = cli_binary.canonicalize()?;
@@ -227,7 +229,7 @@ pub fn run_one(
                 Some(collect_coverage(trace_path, &build_output)?)
             } else {
                 let file_path = PathBuf::from(trace_path);
-                std::fs::write(file_path, "").expect("failed to write coverage");
+                fs::write(file_path, "").expect("failed to write coverage");
                 Some(collect_coverage(trace_path, &build_output)?)
             }
         }
@@ -261,6 +263,11 @@ pub fn run_one(
         //         // fs::remove_file(trace_path)?;
         //     }
         // }
+        let new_trace = format!("global-trace/trace{}", count);
+        File::create(&new_trace)?;
+
+        // Copy the test and corresponding exp file to the tests-error directory
+        fs::copy(DEFAULT_TRACE_FILE, &new_trace)?;
     }
 
     // release the temporary workspace explicitly
@@ -293,9 +300,8 @@ pub fn start_fuzz(
     cli_binary: &Path,
     use_temp_dir: bool,
     test_name: &str,
-) -> Result<(Vec<TestTemplate>, Vec<String>), anyhow::Error> {
-// HashMap<std::string::String, CompiledModule> {
-
+    resume: bool,
+) -> Result<(Vec<TestTemplate>, Vec<String>, ExecCoverageMapWithModules), anyhow::Error> {
     let cli_binary_path = cli_binary.canonicalize()?;
 
     let temp_dir = if use_temp_dir {
@@ -326,7 +332,7 @@ pub fn start_fuzz(
         command
     };
 
-    if storage_dir.exists() || build_output.exists() {
+    if (storage_dir.exists() || build_output.exists()) {
         // need to clean before testing
         cli_command_template()
             .arg("sandbox")
@@ -342,7 +348,6 @@ pub fn start_fuzz(
 
     cli_command_template().arg("package").arg("build").output()?;
     cli_command_template().arg("sandbox").arg("publish").output()?;
-    // cli_command_template().arg("sandbox").arg("run").arg(test_name).output()?;
 
     let mut tests: Vec<TestTemplate> = Vec::new();
     let mut type_arg_pool: Vec<String> = Vec::new();
@@ -351,7 +356,7 @@ pub fn start_fuzz(
         None => None,
         Some(trace_path) => {
             let file_path = PathBuf::from(trace_path);
-            fs::write(file_path, "").expect("couldn't write coverage to tracefile");
+            fs::write(file_path, "").expect("couldn't write coverage to trace file");
 
             let canonical_build = &build_output.canonicalize().unwrap();
             let package_name = parse_move_manifest_from_file(
@@ -437,6 +442,30 @@ pub fn start_fuzz(
         }
     };
 
+    let mut cov_info = ExecCoverageMapWithModules::empty();
+    if Path::new(DEFAULT_GLOBAL_TRACE_FILE).exists() && resume {
+        for entry in fs::read_dir("global-trace".to_owned())? {
+            let file = entry?;
+            let path = Some(file.path());
+            println!("path {:#?}", path);
+            let prev_cov = match &path {
+                None => None,
+                Some(trace_path) => {
+                    if trace_path.exists() {
+                        Some(collect_coverage(trace_path, &build_output)?)
+                    } else {
+                        let file_path = PathBuf::from(trace_path);
+                        fs::write(file_path, "").expect("failed to write coverage");
+                        Some(collect_coverage(trace_path, &build_output)?)
+                    }
+                }
+            };
+            if let Some(cov) = prev_cov {
+                cov_info.merge(cov);
+            }
+        }
+    }
+
     // post-test cleanup and cleanup checks
     // run the clean command to ensure that temporary state is cleaned up
     cli_command_template().arg("sandbox").arg("clean").output()?;
@@ -458,7 +487,7 @@ pub fn start_fuzz(
         t.close()?;
     }
 
-    Ok((tests, type_arg_pool))
+    Ok((tests, type_arg_pool, cov_info))
 }
 
 pub fn get_signer() -> String {
@@ -515,7 +544,7 @@ pub fn fuzz_inputs(
     mut output: &File,
     module_signers: &[String],
     is_dpn: &bool,
-    type_arg_pool: &[String]
+    type_arg_pool: &[String],
 ) -> anyhow::Result<(bool, Vec<String>)> {
     let mut t: String = "sandbox run storage/0x".to_owned() +
         &f.mod_addr.to_string() +
@@ -649,7 +678,11 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     let error_path = Path::new("fuzz-tests/tests-error");
     let ran_path = Path::new("fuzz-tests/tested");
     let not_ran_path = Path::new("fuzz-tests/not-tested");
-    
+    let global_trace = Path::new("global-trace");
+
+    fs::create_dir(global_trace).expect("Failed to create fuzz tests directory");
+    if let Some(p) = global_trace.parent() { fs::create_dir_all(p)? };
+
     fs::create_dir(fuzz_path).expect("Failed to create fuzz tests directory");
     if let Some(p) = fuzz_path.parent() { fs::create_dir_all(p)? };
 
@@ -673,11 +706,21 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
 pub fn fuzzer(
     args_path: &Path, cli_binary: &Path, use_temp_dir: bool,
     // This is the name of the file whose functions are to be tested
-    test_name: &str, is_dpn: &bool, init_script: &str, resume: &bool
+    test_name: &str, is_dpn: &bool, init_script: &str, resume: &bool,
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
-    // I saw the first crate when looking online as well, but I skipped it because it I don't think it supports a priority queue. However, I realize now that I can probably make a work around, but I would need my current queue and QueueFile. I would maintain my normal priority queue in my code, that has the seed (test name) and its associated priority. After each round of fuzzing, I can reprint my priority queue using QueueFile as well, and treat the seed and its priority as separate elements in the QueueFile. Since it's FIFO, as long as I print the priority after the seed, when restoring the queue after the user resumes, I can read every two elements from the QueueFile, taking the first element as the seed name and the second as the priority, when recreating my priority queue.
+
+    if !Path::new(DEFAULT_GLOBAL_TRACE_FILE).exists() {
+        File::create(DEFAULT_GLOBAL_TRACE_FILE)?;
+    }
+
+    let mut global_cov = OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(DEFAULT_GLOBAL_TRACE_FILE)
+        .unwrap();
+
 
     if *resume {
         let mut qf = QueueFile::open("example.qf")
@@ -716,9 +759,10 @@ pub fn fuzzer(
     // Returns an array of function templates (module name, function name,
     // parameters and module address)
     let init_info =
-        start_fuzz(args_path, cli_binary, use_temp_dir, test_name).unwrap();
+        start_fuzz(args_path, cli_binary, use_temp_dir, test_name, *resume).unwrap();
     let template = init_info.0;
     let type_arg_pool = init_info.1;
+    let mut cov_info = init_info.2;
 
     for str in &type_arg_pool {
         println!("STRUCT IS {:#}", &str)
@@ -727,17 +771,19 @@ pub fn fuzzer(
     // This will be used to keep track of the number of tests created
     let mut count = 0;
 
-    // This will store the file paths to any test files created
-    let mut test_paths: Vec<String> = Vec::new();
-
     // This will keep track of any signers used so far
     // TODO: Don't have hardcoded ones
     // let mut signers: Vec<String> = Vec::new();
     let mut signers: Vec<String> = vec!["0xA550C18".to_string(), "0xB1E55ED".to_string(),
                                         "0xDD".to_string(), "0xA".to_string(), "0xb".to_string()];
 
-    // For each of the eligible functions in the library, push an initial test for it to test_paths,
-    // from which we will form our queue
+    // This queue holds the names of the test files. Tests will be popped from this queue, ran,
+    // and if they receive positive feedback, then a mutated version will be pushed to the back
+    // of the queue. Once ran, all tests will be moved to the "used" test directory under the
+    // fuzz-tests folder that is generated when running the fuzz cli command.
+    let mut pq = PriorityQueue::new();
+
+    // For each of the eligible functions in the library, push an initial test for it to the queue
     for func in template.iter() {
         let new_test = format!("test{}", count);
         let mut output = File::create(&new_test)?;
@@ -763,26 +809,49 @@ pub fn fuzzer(
             signers.append(&mut output.1)
         }
         // Add the test to our queue
-        test_paths.push(new_test);
+        pq.push(new_test, 100);
         count += 1;
-    }
-
-    // This queue holds the names of the test files. Tests will be popped from this queue, ran,
-    // and if they receive positive feedback, then a mutated version will be pushed to the back
-    // of the queue. Once ran, all tests will be moved to the "used" test directory under the 
-    // fuzz-tests folder that is generated when running the fuzz cli command.
-    // let mut deque = VecDeque::from(test_paths);
-    let mut pq = PriorityQueue::new();
-    for test in test_paths.clone() {
-        pq.push(test, 100);
     }
 
     // Random number generator to choose which function
     let between = rand::distributions::Uniform::from(0..template.len());
     let mut rng = rand::thread_rng();
 
-    let mut cov_info = ExecCoverageMapWithModules::empty();
+
+    // path where we will run the binary
+    // let exe_dir = args_path.parent().unwrap();
+    // let temp_dir = if use_temp_dir {
+    //     // symlink everything in the exe_dir into the temp_dir
+    //     let dir = tempdir()?;
+    //     let padded_dir = copy_deps(dir.path(), exe_dir)?;
+    //     simple_copy_dir(&padded_dir, exe_dir)?;
+    //     Some((dir, padded_dir))
+    // } else {
+    //     None
+    // };
+    // let wks_dir = temp_dir.as_ref().map_or(exe_dir, |t| &t.1);
+    // let global_trace =  Some(wks_dir.canonicalize()?.join(DEFAULT_GLOBAL_TRACE_FILE));
+
+    // if *resume && Path::new("global_trace").exists()  {
+    //     let prev_cov = match &global_trace {
+    //         None => None,
+    //         Some(trace_path) => {
+    //             if trace_path.exists() {
+    //                 Some(collect_coverage(trace_path, &build_output)?)
+    //             } else {
+    //                 let file_path = PathBuf::from(trace_path);
+    //                 fs::write(file_path, "").expect("failed to write coverage");
+    //                 Some(collect_coverage(trace_path, &build_output)?)
+    //             }
+    //         }
+    //     };
+    //     cov_info = prev_cov.unwrap_or(ExecCoverageMapWithModules::empty())
+    // }
+
+
+    // TODO:
     let mut covered: HashMap<String, u64> = HashMap::new();
+    // TODO:
     let mut tests_ran: HashSet<String> = HashSet::new();
 
     let mut b = 0;
@@ -790,12 +859,12 @@ pub fn fuzzer(
     // && !pq.is_empty()
     {
         println!("round {}", b);
+        // println!("cov nfo {:#?}", cov_info);
 
         if pq.is_empty() {
             if b > 500 {
                 break;
             }
-            test_paths = Vec::new();
 
             for func in template.iter() {
                 let new_test = format!("test{}", count);
@@ -821,18 +890,8 @@ pub fn fuzzer(
                     signers.append(&mut output.1)
                 }
                 // Add the test to our queue
-                test_paths.push(new_test);
+                pq.push(new_test, 100);
                 count += 1;
-            }
-
-            // This queue holds the names of the test files. Tests will be popped from this queue, ran,
-            // and if they receive positive feedback, then a mutated version will be pushed to the back
-            // of the queue. Once ran, all tests will be moved to the "used" test directory under the fuzz-tests
-            // folder that is generated when running the fuzz cli command.
-            // let mut deque = VecDeque::from(test_paths);
-            for test in test_paths.clone() {
-                println!("{:#?}", test.clone());
-                pq.push(test, 100);
             }
         }
 
@@ -876,7 +935,7 @@ pub fn fuzzer(
                     pq.push(test_path.0.to_string(), test_path.1 - 1);
                 } else {
                     match run_one(Path::new(&("./".to_owned() + &test_path.0)),
-                                  cli_binary, use_temp_dir) {
+                                  cli_binary, use_temp_dir, count) {
                         Ok(tuple) => {
                             tests_ran.insert(test_path.clone().0);
 
@@ -1028,9 +1087,7 @@ pub fn fuzzer(
         let mut new_qf = QueueFile::open("temp.qf")
             .expect("cannot open queue file");
         for i in pq.iter() {
-
-
-            new_qf.add( i.0.as_bytes()).expect("add failed");
+            new_qf.add(i.0.as_bytes()).expect("add failed");
             new_qf.add(i.1.to_string().as_bytes()).expect("add failed");
             println!("{:#?}", i.0);
         }
@@ -1038,6 +1095,12 @@ pub fn fuzzer(
             fs::remove_file("example.qf")?;
         }
         fs::rename("temp.qf", "example.qf").expect("TODO: panic message");
+        // fs::copy(DEFAULT_TRACE_FILE, DEFAULT_GLOBAL_TRACE_FILE, ).expect("TODO: panic message");
+        // let mut txt2 = fs::OpenOptions::new()
+        //     .read(true)
+        //     .open(DEFAULT_TRACE_FILE)?;
+        //
+        // let result = io::copy(&mut txt2, &mut global_cov)?;
     }
 
     // Begin cleanup by moving the created tests into their respective folders
@@ -1071,7 +1134,6 @@ pub fn fuzzer(
     println!("new vars {:#?} {:#?} {:#?}", is_dpn, init_script, resume);
 
     Ok(())
-
 }
 
 //TODO: FILTER STRUCTURES AND LEAVE NOTE
