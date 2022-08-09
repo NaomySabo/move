@@ -152,9 +152,12 @@ pub enum SandboxCommand {
         // Flag to indicate if a DPN module is being targeted
         #[clap(long = "is-dpn")]
         is_dpn: bool,
-        #[clap(name = "init-script", parse(try_from_str))]
+        #[clap(name = "init-file", parse(try_from_str))]
         // Initialize the script
-        init_script: String,
+        init_file: String,
+        #[clap(name = "init-func", parse(try_from_str))]
+        // Initialize the script
+        init_func: String,
         #[clap(long = "resume", short = 'r')]
         resume: bool
     }
@@ -306,7 +309,7 @@ impl SandboxCommand {
                     .prepare_state(storage_dir)?;
                 handle_generate_commands(cmd, &state)
             }
-            SandboxCommand::Fuzzer {use_temp_dir, module, is_dpn, init_script, resume} => sandbox::commands::fuzzer(
+            SandboxCommand::Fuzzer {use_temp_dir, module, is_dpn, init_file, init_func, resume} => sandbox::commands::fuzzer(
                 move_args
                     .package_path
                     .as_deref()
@@ -315,7 +318,8 @@ impl SandboxCommand {
                 *use_temp_dir,
                 &module,
                 is_dpn,
-                &init_script,
+                &init_file,
+                &init_func,
                 resume
             ),
         }
