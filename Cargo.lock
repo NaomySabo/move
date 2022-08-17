@@ -2459,6 +2459,7 @@ dependencies = [
  "rand 0.8.5",
  "read-write-set",
  "read-write-set-dynamic",
+ "regex",
  "serde 1.0.130",
  "serde_yaml",
  "tempfile",

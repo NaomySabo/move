@@ -259,12 +259,13 @@ pub fn run_one(
         //         // fs::remove_file(trace_path)?;
         //     }
         // }
-        let new_trace = format!("global-trace/trace{}", count);
-        File::create(&new_trace)?;
 
-        // Copy the test and corresponding exp file to the tests-error directory
-        fs::copy(DEFAULT_TRACE_FILE, &new_trace)?;
     }
+
+    // Copy the trace to the global-trace folders
+    let new_trace = format!("global-trace/trace{}", count);
+    File::create(&new_trace)?;
+    fs::copy(DEFAULT_TRACE_FILE, &new_trace)?;
 
     // release the temporary workspace explicitly
     if let Some((t, _)) = temp_dir {
@@ -423,7 +424,11 @@ pub fn start_fuzz(
                         let mod_addr = &info.address_identifiers[mod_addr_idx].to_hex_literal();
 
                         let final_struct = mod_addr.to_owned() + "::" + mod_name + "::" + struct_name;
-                        type_arg_pool.push(final_struct)
+                        // For now, for simplicity, only structures that don't take type
+                        // arguments are being used
+                        if info.struct_handles[struct_handle_idx].type_parameters.is_empty() {
+                            type_arg_pool.push(final_struct)
+                        }
                     }
                 }
 
@@ -455,7 +460,7 @@ pub fn start_fuzz(
     };
     
     let mut cov_info = ExecCoverageMapWithModules::empty();
-    let mut prev_count = 2;
+    let mut prev_count = 0;
     if Path::new(DEFAULT_GLOBAL_TRACE_PATH).exists() && resume {
         for entry in fs::read_dir(DEFAULT_GLOBAL_TRACE_PATH.to_owned())? {
             let file = entry?;
@@ -714,7 +719,6 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     fs::create_dir(not_ran_path).expect("Failed to create the not tested directory");
     if let Some(p) = not_ran_path.parent() { fs::create_dir_all(p)? };
 
-    // Vec![fuzz_path, error_path, ran_path, not_ran_path]
     Ok(())
 }
 
@@ -732,29 +736,6 @@ pub fn fuzzer(
     // fuzz-tests folder that is generated when running the fuzz cli command.
     let mut pq = PriorityQueue::new();
 
-    if *resume {
-        let mut qf = QueueFile::open("example.qf")
-            .expect("cannot open queue file");
-
-        let mut seed: String = "".to_owned();
-
-        for (index, elem) in qf.iter().enumerate() {
-            if index % 2 == 0 {
-                seed = std::str::from_utf8(&elem).unwrap_or("<invalid>").to_owned();
-            } else {
-                let priority: u64 = (std::str::from_utf8(&elem).unwrap_or("<invalid>"))
-                    .parse::<u64>().expect("not a number").to_owned();
-                pq.push(seed.clone(), priority);
-            }
-        }
-
-        println!("Priority Queue is {:#?}", pq);
-    }
-
-    if !*resume {
-        setup_fuzz_dirs().expect("Could not set-up test directories");
-    }
-
     // Returns an array of function templates (module name, function name,
     // parameters and module address)
     let init_info =
@@ -768,6 +749,7 @@ pub fn fuzzer(
     let mut count = 0;
     if *resume {
         count = init_info.3 + 1;
+        println!("COVERAGE RESUMED AT:");
         for (_, module_summary) in cov_info.clone().into_module_summaries() {
             for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
                 if !fn_summary.fn_is_native {
@@ -778,11 +760,92 @@ pub fn fuzzer(
         println!("\n");
     }
 
+    let mut last_count = 0;
+    if count > 0 {
+        last_count = count - 1;
+    }
+    let last_test = "test".to_owned() + &last_count.to_string();
+    let mut last_test_found = false;
+    let mut latest_test = 0;
+
+    if *resume {
+        let mut queue_file = "example.qf";
+        if !Path::new(queue_file).is_file() {
+            queue_file = "temp.qf";
+        }
+
+        let mut qf = QueueFile::open(queue_file)
+            .expect("cannot open queue file");
+        // TODO: if example.qf does not exist
+
+        let mut seed: String = "".to_owned();
+
+        for (index, elem) in qf.iter().enumerate() {
+            if index % 2 == 0 {
+                seed = std::str::from_utf8(&elem).unwrap_or("<invalid>").to_owned();
+            } else {
+                let priority: u64 = (std::str::from_utf8(&elem).unwrap_or("<invalid>"))
+                    .parse::<u64>().expect("not a number").to_owned();
+
+                // If the last test was created, check to see if it was also added to the queue
+                if seed == last_test {
+                    last_test_found = true;
+                }
+
+                let test_num = &seed[4..seed.len()].to_string();
+                let test_num_as_int = test_num.parse().unwrap();
+                if test_num_as_int > latest_test {
+                    latest_test = test_num_as_int
+                }
+
+                // If the latest test ran before pausing gave an error, but wasn't removed from the
+                // queue yet, don't add it to the queue we are rebuilding
+                let test_name = &("fuzz-tests/tests-error/".to_owned() + &seed.clone());
+                let is_error = Path::new(test_name).is_file();
+                if !is_error {
+                    pq.push(seed.clone(), priority);
+                } else {
+                    println!("NOT ADDING {:#?}", test_name);
+                    if test_name ==  &("test".to_owned() + &count.to_string()) {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        println!("RESTORED PRIORITY QUEUE IS: {:#?}", pq);
+    }
+
+
+    // If a test was created and ran (because it's trace exists), but not added to our queue,
+    // push it back to our queue with the top priority, so it can be rerun
+    if *resume && !last_test_found {
+        println!("we may need to remove {:#?}", last_test);
+        if Path::new(&last_test).is_file() {
+            println!("removed {:#?}", last_test);
+            fs::remove_file(&last_test)?;
+            // decrement count
+            count -= 1;
+            // println!("count is now {:#?}", count);
+        } else if !Path::new(&("fuzz-tests/tests-error/".to_owned() + &last_test)).is_file() {
+            // decrement count
+            count -= 1;
+            // println!("count is now {:#?}", count);
+        }
+    }
+
+    if latest_test >= count && *resume {
+        count = latest_test + 1
+    }
+    println!("count is {:#?}", count);
+
+    if !*resume {
+        setup_fuzz_dirs().expect("Could not set-up test directories");
+    }
+
     // for str in &type_arg_pool {
     //     println!("STRUCT IS {:#}", &str)
     // }
 
-    println!("COUNT IS {:#?}", count);
     // This will keep track of any signers used so far
     // TODO: Don't have hardcoded ones
     // let mut signers: Vec<String> = Vec::new();
@@ -858,7 +921,6 @@ pub fn fuzzer(
                 }
             }
         }
-        println!("restored covered is {:#?}", covered);
 
         // Then, also add any tests already ran in the tests_ran hash set
         let ran_path = "./fuzz-tests/tested";
@@ -875,6 +937,11 @@ pub fn fuzzer(
             }
         }
     }
+    let mut global_count = 0;
+    if *resume {
+        global_count = count;
+    }
+
 
     let mut b = 0;
     while b < 500
@@ -917,7 +984,6 @@ pub fn fuzzer(
         b += 1;
         let seed = pq.pop();
         let clone = seed.clone();
-        // let prev_cov = cov_info.clone();
         match seed {
             Some(test_path) => {
                 if tests_ran.contains(&test_path.0) {
@@ -955,8 +1021,9 @@ pub fn fuzzer(
                     pq.push(test_path.0.to_string(), test_path.1 - 1);
                 } else {
                     match run_one(Path::new(&("./".to_owned() + &test_path.0)),
-                                  cli_binary, use_temp_dir, count) {
+                                  cli_binary, use_temp_dir, global_count) {
                         Ok(tuple) => {
+                            global_count += 1;
                             tests_ran.insert(test_path.clone().0);
 
                             test_total = test_total.checked_add(1).unwrap();
