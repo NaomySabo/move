@@ -1,4 +1,0 @@
-Command `sandbox publish`:
-Publishing failed with unexpected error UNEXPECTED_VERIFIER_ERROR
-Command `sandbox run storage/0x00000000000000000000000000000002/modules/Test.mv --signers 0x6C5BEAF5D3FBA92D4EE8AB8146831CCB -v publish`:
-Error: Script file "storage/0x00000000000000000000000000000002/modules/Test.mv" does not exist
