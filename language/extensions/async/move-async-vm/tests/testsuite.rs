@@ -8,6 +8,7 @@ use move_async_vm::{
     actor_metadata,
     actor_metadata::ActorMetadata,
     async_vm::{AsyncResult, AsyncSession, AsyncVM, Message},
+    natives::GasParameters as ActorGasParameters,
 };
 use move_binary_format::access::ModuleAccess;
 use move_command_line_common::testing::EXP_EXT;
@@ -17,13 +18,13 @@ use move_compiler::{
 };
 use move_core_types::{
     account_address::AccountAddress,
-    effects::ChangeSet,
+    effects::{ChangeSet, Op},
     identifier::{IdentStr, Identifier},
     language_storage::{ModuleId, StructTag},
     resolver::{ModuleResolver, ResourceResolver},
 };
 use move_prover_test_utils::{baseline_test::verify_or_update_baseline, extract_test_directives};
-use move_vm_types::gas_schedule::GasStatus;
+use move_vm_test_utils::gas_schedule::GasStatus;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -182,25 +183,34 @@ impl Harness {
 
     fn commit_changeset(&self, changeset: ChangeSet) {
         for (addr, change) in changeset.into_inner() {
-            for (struct_tag, val) in change.into_inner().1 {
+            for (struct_tag, op) in change.into_inner().1 {
                 self.log(format!(
-                    "  commit 0x{}::{}::{}[0x{}] := {}",
+                    "  commit 0x{}::{}::{}[0x{}] := {:?}",
                     struct_tag.address.short_str_lossless(),
                     struct_tag.module,
                     struct_tag.module,
                     addr.short_str_lossless(),
-                    val.as_ref()
-                        .map(|b| format!("{:02X?}", b))
-                        .unwrap_or_else(|| "None".to_string())
+                    op.as_ref().map(|b| format!("{:02X?}", b))
                 ));
-                match val {
-                    Some(v) => {
+                match op {
+                    Op::New(v) => {
+                        assert!(self
+                            .resource_store
+                            .borrow_mut()
+                            .insert((addr, struct_tag), v)
+                            .is_none());
+                    }
+                    Op::Modify(v) => {
                         self.resource_store
                             .borrow_mut()
-                            .insert((addr, struct_tag), v);
+                            .insert((addr, struct_tag), v)
+                            .unwrap();
                     }
-                    None => {
-                        self.resource_store.borrow_mut().remove(&(addr, struct_tag));
+                    Op::Delete => {
+                        self.resource_store
+                            .borrow_mut()
+                            .remove(&(addr, struct_tag))
+                            .unwrap();
                     }
                 }
             }
@@ -237,8 +247,14 @@ impl Harness {
             resource_store: Default::default(),
             vm: AsyncVM::new(
                 test_account(),
-                move_stdlib::natives::all_natives(test_account()),
+                move_stdlib::natives::all_natives(
+                    test_account(),
+                    // We may want to switch to a different gas schedule in the future, but for now,
+                    // the all-zero one should be enough.
+                    move_stdlib::natives::GasParameters::zeros(),
+                ),
                 actor_metadata,
+                ActorGasParameters::zeros(),
             )?,
             actor_instances,
         };

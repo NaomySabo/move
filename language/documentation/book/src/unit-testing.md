@@ -113,6 +113,7 @@ $ move -h
 A simple module using some of the unit testing features is shown in the following example:
 
 First create an empty package and change directory into it:
+
 ```
 $ move new TestExample; cd TestExample
 ```
@@ -276,7 +277,7 @@ module 0x1::my_module {
 }
 ```
 
-we would get get the following output when running the tests:
+we would get the following output when running the tests:
 
 ```
 $ move test -g

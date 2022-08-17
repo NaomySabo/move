@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
+    package_hooks,
     resolution::digest::compute_digest,
     source_package::{
         layout::SourcePackageLayout,
         manifest_parser::{parse_move_manifest_string, parse_source_manifest},
         parsed_manifest::{
-            Dependency, FileName, NamedAddress, PackageDigest, PackageName, SourceManifest,
-            SubstOrRename,
+            Dependencies, Dependency, FileName, NamedAddress, PackageDigest, PackageName,
+            SourceManifest, SubstOrRename,
         },
     },
     BuildConfig,
@@ -392,7 +393,7 @@ impl ResolvingGraph {
         dep: Dependency,
         root_path: PathBuf,
     ) -> Result<(Renaming, ResolvingTable)> {
-        Self::download_and_update_if_repo(dep_name_in_pkg, &dep)?;
+        Self::download_and_update_if_remote(dep_name_in_pkg, &dep)?;
         let (dep_package, dep_package_dir) =
             Self::parse_package_manifest(&dep, &dep_name_in_pkg, root_path)
                 .with_context(|| format!("While processing dependency '{}'", dep_name_in_pkg))?;
@@ -515,7 +516,33 @@ impl ResolvingGraph {
         }
     }
 
-    fn download_and_update_if_repo(dep_name: PackageName, dep: &Dependency) -> Result<()> {
+    pub fn download_dependency_repos(
+        manifest: &SourceManifest,
+        build_options: &BuildConfig,
+        root_path: &Path,
+    ) -> Result<()> {
+        // include dev dependencies if in dev mode
+        let empty_deps;
+        let additional_deps = if build_options.dev_mode {
+            &manifest.dev_dependencies
+        } else {
+            empty_deps = Dependencies::new();
+            &empty_deps
+        };
+
+        for (dep_name, dep) in manifest.dependencies.iter().chain(additional_deps.iter()) {
+            Self::download_and_update_if_remote(*dep_name, dep)?;
+
+            let (dep_manifest, _) =
+                Self::parse_package_manifest(dep, dep_name, root_path.to_path_buf())
+                    .with_context(|| format!("While processing dependency '{}'", *dep_name))?;
+            // download dependencies of dependencies
+            Self::download_dependency_repos(&dep_manifest, &build_options, root_path)?;
+        }
+        Ok(())
+    }
+
+    fn download_and_update_if_remote(dep_name: PackageName, dep: &Dependency) -> Result<()> {
         if let Some(git_info) = &dep.git_info {
             if !git_info.download_to.exists() {
                 Command::new("git")
@@ -544,6 +571,9 @@ impl ResolvingGraph {
                         )
                     })?;
             }
+        }
+        if let Some(node_info) = &dep.node_info {
+            package_hooks::resolve_custom_dependency(dep_name, node_info)?
         }
         Ok(())
     }

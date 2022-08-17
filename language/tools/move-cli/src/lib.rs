@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use base::{
-    build::Build, coverage::Coverage, disassemble::Disassemble, errmap::Errmap, info::Info,
-    new::New, prove::Prove, test::Test,
+    build::Build, coverage::Coverage, disassemble::Disassemble, docgen::Docgen, errmap::Errmap,
+    info::Info, movey_login::MoveyLogin, movey_upload::MoveyUpload, new::New, prove::Prove,
+    test::Test,
 };
 use move_package::BuildConfig;
 
 pub mod base;
 pub mod experimental;
 pub mod sandbox;
+pub mod utils;
 
 /// Default directory where saved Move resources live
 pub const DEFAULT_STORAGE_DIR: &str = "storage";
@@ -24,10 +26,10 @@ const BCS_EXTENSION: &str = "bcs";
 use anyhow::Result;
 use clap::Parser;
 use move_core_types::{
-    account_address::AccountAddress, errmap::ErrorMapping, gas_schedule::CostTable,
-    identifier::Identifier,
+    account_address::AccountAddress, errmap::ErrorMapping, identifier::Identifier,
 };
 use move_vm_runtime::native_functions::NativeFunction;
+use move_vm_test_utils::gas_schedule::CostTable;
 use std::path::PathBuf;
 
 type NativeFunctionRecord = (AccountAddress, Identifier, Identifier, NativeFunction);
@@ -65,8 +67,10 @@ pub enum Command {
     Build(Build),
     Coverage(Coverage),
     Disassemble(Disassemble),
+    Docgen(Docgen),
     Errmap(Errmap),
     Info(Info),
+    MoveyUpload(MoveyUpload),
     New(New),
     Prove(Prove),
     Test(Test),
@@ -90,6 +94,8 @@ pub enum Command {
         #[clap(subcommand)]
         cmd: experimental::cli::ExperimentalCommand,
     },
+    #[clap(name = "movey-login")]
+    MoveyLogin(MoveyLogin),
 }
 
 pub fn run_cli(
@@ -99,12 +105,17 @@ pub fn run_cli(
     move_args: Move,
     cmd: Command,
 ) -> Result<()> {
+    // TODO: right now, the gas metering story for move-cli (as a library) is a bit of a mess.
+    //         1. It's still using the old CostTable.
+    //         2. The CostTable only affects sandbox runs, but not unit tests, which use a unit cost table.
     match cmd {
         Command::Build(c) => c.execute(move_args.package_path, move_args.build_config),
         Command::Coverage(c) => c.execute(move_args.package_path, move_args.build_config),
         Command::Disassemble(c) => c.execute(move_args.package_path, move_args.build_config),
+        Command::Docgen(c) => c.execute(move_args.package_path, move_args.build_config),
         Command::Errmap(c) => c.execute(move_args.package_path, move_args.build_config),
         Command::Info(c) => c.execute(move_args.package_path, move_args.build_config),
+        Command::MoveyUpload(c) => c.execute(move_args.package_path),
         Command::New(c) => c.execute_with_defaults(move_args.package_path),
         Command::Prove(c) => c.execute(move_args.package_path, move_args.build_config),
         Command::Test(c) => c.execute(move_args.package_path, move_args.build_config, natives),
@@ -116,6 +127,7 @@ pub fn run_cli(
             &storage_dir,
         ),
         Command::Experimental { storage_dir, cmd } => cmd.handle_command(&move_args, &storage_dir),
+        Command::MoveyLogin(c) => c.execute(),
     }
 }
 

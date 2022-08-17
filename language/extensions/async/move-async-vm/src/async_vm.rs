@@ -11,8 +11,7 @@ use std::{
 use move_binary_format::errors::{Location, PartialVMError, PartialVMResult, VMError, VMResult};
 use move_core_types::{
     account_address::AccountAddress,
-    effects::{ChangeSet, Event},
-    gas_schedule::GasAlgebra,
+    effects::{ChangeSet, Event, Op},
     identifier::Identifier,
     language_storage::{ModuleId, StructTag, TypeTag},
     resolver::MoveResolver,
@@ -24,12 +23,15 @@ use move_vm_runtime::{
     native_functions::NativeFunction,
     session::{SerializedReturnValues, Session},
 };
-use move_vm_types::{
-    gas_schedule::GasStatus,
-    values::{Reference, Value},
-};
+use move_vm_test_utils::gas_schedule::{Gas, GasStatus};
+use move_vm_types::values::{Reference, Value};
 
-use crate::{actor_metadata, actor_metadata::ActorMetadata, natives, natives::AsyncExtension};
+use crate::{
+    actor_metadata,
+    actor_metadata::ActorMetadata,
+    natives,
+    natives::{AsyncExtension, GasParameters as ActorGasParameters},
+};
 
 /// Represents an instance of an async VM.
 pub struct AsyncVM {
@@ -40,7 +42,12 @@ pub struct AsyncVM {
 
 impl AsyncVM {
     /// Creates a new VM, registering the given natives and actors.
-    pub fn new<I, A>(async_lib_addr: AccountAddress, natives: I, actors: A) -> VMResult<Self>
+    pub fn new<I, A>(
+        async_lib_addr: AccountAddress,
+        natives: I,
+        actors: A,
+        actor_gas_parameters: ActorGasParameters,
+    ) -> VMResult<Self>
     where
         I: IntoIterator<Item = (AccountAddress, Identifier, Identifier, NativeFunction)>,
         A: IntoIterator<Item = ActorMetadata>,
@@ -62,9 +69,9 @@ impl AsyncVM {
             .collect();
         Ok(AsyncVM {
             move_vm: MoveVM::new(
-                natives
-                    .into_iter()
-                    .chain(natives::actor_natives(async_lib_addr).into_iter()),
+                natives.into_iter().chain(
+                    natives::actor_natives(async_lib_addr, actor_gas_parameters).into_iter(),
+                ),
             )?,
             actor_metadata,
             message_table,
@@ -138,7 +145,7 @@ pub struct AsyncSuccess<'r> {
     pub change_set: ChangeSet,
     pub events: Vec<Event>,
     pub messages: Vec<Message>,
-    pub gas_used: u64,
+    pub gas_used: Gas,
     pub ext: NativeContextExtensions<'r>,
 }
 
@@ -146,7 +153,7 @@ pub struct AsyncSuccess<'r> {
 #[derive(Debug, Clone)]
 pub struct AsyncError {
     pub error: VMError,
-    pub gas_used: u64,
+    pub gas_used: Gas,
 }
 
 /// Result type for operations of an AsyncSession.
@@ -183,6 +190,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
             .vm_session
             .get_data_store()
             .load_resource(actor_addr, &state_type)
+            .map(|(gv, _)| gv)
             .map_err(partial_vm_error_to_async)?;
         if state.exists().map_err(partial_vm_error_to_async)? {
             return Err(async_extension_error(format!(
@@ -193,7 +201,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
         }
 
         // Execute the initializer.
-        let gas_before = gas_status.remaining_gas().get();
+        let gas_before = gas_status.remaining_gas();
         let result = self
             .vm_session
             .execute_function_bypass_visibility(
@@ -204,7 +212,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
                 gas_status,
             )
             .and_then(|ret| Ok((ret, self.vm_session.finish_with_extensions()?)));
-        let gas_used = gas_status.remaining_gas().get() - gas_before;
+        let gas_used = gas_before.checked_sub(gas_status.remaining_gas()).unwrap();
 
         // Process the result, moving the return value of the initializer function into the
         // changeset.
@@ -227,6 +235,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
                         actor_addr,
                         actor.state_tag.clone(),
                         return_values.remove(0).0,
+                        false,
                     )
                     .map_err(partial_vm_error_to_async)?;
                     let async_ext = native_extensions.remove::<AsyncExtension>();
@@ -276,6 +285,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
             .vm_session
             .get_data_store()
             .load_resource(actor_addr, &state_type)
+            .map(|(gv, _)| gv)
             .map_err(partial_vm_error_to_async)?;
         let actor_state = actor_state_global
             .borrow_global()
@@ -289,13 +299,13 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
         );
 
         // Execute the handler.
-        let gas_before = gas_status.remaining_gas().get();
+        let gas_before = gas_status.remaining_gas();
         let result = self
             .vm_session
             .execute_function_bypass_visibility(module_id, handler_id, vec![], args, gas_status)
             .and_then(|ret| Ok((ret, self.vm_session.finish_with_extensions()?)));
 
-        let gas_used = gas_status.remaining_gas().get() - gas_before;
+        let gas_used = gas_before.checked_sub(gas_status.remaining_gas()).unwrap();
 
         // Process the result, moving the mutated value of the handlers first parameter
         // into the changeset.
@@ -319,6 +329,7 @@ impl<'r, 'l, S: MoveResolver> AsyncSession<'r, 'l, S> {
                             actor_addr,
                             actor.state_tag.clone(),
                             mutable_reference_outputs.remove(0).1,
+                            true,
                         )
                         .map_err(partial_vm_error_to_async)?;
                     }
@@ -367,9 +378,18 @@ fn publish_actor_state(
     actor_addr: AccountAddress,
     state_tag: StructTag,
     state: Vec<u8>,
+    is_modify: bool,
 ) -> PartialVMResult<()> {
     change_set
-        .publish_resource(actor_addr, state_tag, state)
+        .add_resource_op(
+            actor_addr,
+            state_tag,
+            if is_modify {
+                Op::Modify(state)
+            } else {
+                Op::New(state)
+            },
+        )
         .map_err(|err| partial_extension_error(format!("cannot publish actor state: {}", err)))
 }
 
@@ -384,12 +404,15 @@ pub(crate) fn extension_error(msg: impl ToString) -> VMError {
 fn async_extension_error(msg: impl ToString) -> AsyncError {
     AsyncError {
         error: extension_error(msg),
-        gas_used: 0,
+        gas_used: 0.into(),
     }
 }
 
 fn vm_error_to_async(error: VMError) -> AsyncError {
-    AsyncError { error, gas_used: 0 }
+    AsyncError {
+        error,
+        gas_used: 0.into(),
+    }
 }
 
 fn partial_vm_error_to_async(error: PartialVMError) -> AsyncError {

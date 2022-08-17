@@ -11,9 +11,9 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use move_command_line_common::env::get_bytecode_version_from_env;
-use move_core_types::gas_schedule::CostTable;
 use move_package::compilation::compiled_package::CompiledPackage;
 use move_vm_runtime::move_vm::MoveVM;
+use move_vm_test_utils::gas_schedule::CostTable;
 use std::collections::BTreeMap;
 
 pub fn publish(
@@ -141,11 +141,13 @@ pub fn publish(
             let (changeset, events) = session.finish().map_err(|e| e.into_vm_status())?;
             assert!(events.is_empty());
             if verbose {
-                explain_publish_changeset(&changeset, state);
+                explain_publish_changeset(&changeset);
             }
             let modules: Vec<_> = changeset
                 .into_modules()
-                .map(|(module_id, blob_opt)| (module_id, blob_opt.expect("must be non-deletion")))
+                .map(|(module_id, blob_opt)| {
+                    (module_id, blob_opt.ok().expect("must be non-deletion"))
+                })
                 .collect();
             state.save_modules(&modules)?;
         }

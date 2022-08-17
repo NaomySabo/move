@@ -17,8 +17,7 @@ use move_compiler::{
 };
 use move_core_types::{
     account_address::AccountAddress,
-    effects::ChangeSet,
-    gas_schedule::{CostTable, GasAlgebra, GasCost, GasUnits},
+    effects::{ChangeSet, Op},
     identifier::IdentStr,
     value::serialize_values,
     vm_status::StatusCode,
@@ -34,8 +33,10 @@ use move_stackless_bytecode_interpreter::{
     StacklessBytecodeInterpreter,
 };
 use move_vm_runtime::{move_vm::MoveVM, native_functions::NativeFunctionTable};
-use move_vm_test_utils::InMemoryStorage;
-use move_vm_types::gas_schedule::{zero_cost_schedule, GasStatus};
+use move_vm_test_utils::{
+    gas_schedule::{zero_cost_schedule, CostTable, Gas, GasCost, GasStatus},
+    InMemoryStorage,
+};
 use rayon::prelude::*;
 use std::{collections::BTreeMap, io::Write, marker::Send, sync::Mutex, time::Instant};
 
@@ -75,12 +76,9 @@ pub struct TestRunner {
 
 /// A gas schedule where every instruction has a cost of "1". This is used to bound execution of a
 /// test to a certain number of ticks.
-fn unit_cost_table(num_of_native_funcs: usize) -> CostTable {
-    let mut cost_schedule = zero_cost_schedule(num_of_native_funcs);
+fn unit_cost_table() -> CostTable {
+    let mut cost_schedule = zero_cost_schedule();
     cost_schedule.instruction_table.iter_mut().for_each(|cost| {
-        *cost = GasCost::new(1, 1);
-    });
-    cost_schedule.native_table.iter_mut().for_each(|cost| {
         *cost = GasCost::new(1, 1);
     });
     cost_schedule
@@ -118,12 +116,12 @@ fn print_resources_and_extensions(
     for (account_addr, account_state) in cs.accounts() {
         writeln!(&mut buf, "0x{}:", account_addr.short_str_lossless())?;
 
-        for (tag, resource_opt) in account_state.resources() {
-            if let Some(resource) = resource_opt {
+        for (tag, resource_op) in account_state.resources() {
+            if let Op::New(resource) | Op::Modify(resource) = resource_op {
                 writeln!(
                     &mut buf,
                     "\t{}",
-                    format!("=> {}", annotator.view_resource(tag, resource)?).replace("\n", "\n\t")
+                    format!("=> {}", annotator.view_resource(tag, resource)?).replace('\n', "\n\t")
                 )?;
             }
         }
@@ -142,6 +140,8 @@ impl TestRunner {
         save_storage_state_on_failure: bool,
         report_stacktrace_on_abort: bool,
         tests: TestPlan,
+        // TODO: maybe we should require the clients to always pass in a list of native functions so
+        // we don't have to make assumptions about their gas parameters.
         native_function_table: Option<NativeFunctionTable>,
         named_address_values: BTreeMap<String, NumericalAddress>,
         #[cfg(feature = "evm-backend")] evm: bool,
@@ -154,9 +154,11 @@ impl TestRunner {
         let modules = tests.module_info.values().map(|info| &info.module);
         let starting_storage_state = setup_test_storage(modules)?;
         let native_function_table = native_function_table.unwrap_or_else(|| {
-            move_stdlib::natives::all_natives(AccountAddress::from_hex_literal("0x1").unwrap())
+            move_stdlib::natives::all_natives(
+                AccountAddress::from_hex_literal("0x1").unwrap(),
+                move_stdlib::natives::GasParameters::zeros(),
+            )
         });
-        let num_of_native_funcs = native_function_table.len();
         Ok(Self {
             testing_config: SharedTestingConfig {
                 save_storage_state_on_failure,
@@ -164,7 +166,12 @@ impl TestRunner {
                 starting_storage_state,
                 execution_bound,
                 native_function_table,
-                cost_table: unit_cost_table(num_of_native_funcs),
+                // TODO: our current implementation uses a unit cost table to prevent programs from
+                // running indefinitely. This should probably be done in a different way, like halting
+                // after executing a certain number of instructions or setting a timer.
+                //
+                // From the API standpoint, we should let the client specify the cost table.
+                cost_table: unit_cost_table(),
                 source_files,
                 check_stackless_vm,
                 verbose,
@@ -202,7 +209,11 @@ impl TestRunner {
                 let tests = std::mem::take(&mut module_test.tests);
                 module_test.tests = tests
                     .into_iter()
-                    .filter(|(test_name, _)| test_name.as_str().contains(test_name_slice))
+                    .filter(|(test_name, _)| {
+                        let full_name =
+                            format!("{}::{}", module_id.name().as_str(), test_name.as_str());
+                        full_name.contains(test_name_slice)
+                    })
                     .collect();
             }
         }
@@ -266,7 +277,7 @@ impl SharedTestingConfig {
         let extensions = extensions::new_extensions();
         let mut session =
             move_vm.new_session_with_extensions(&self.starting_storage_state, extensions);
-        let mut gas_meter = GasStatus::new(&self.cost_table, GasUnits::new(self.execution_bound));
+        let mut gas_meter = GasStatus::new(&self.cost_table, Gas::new(self.execution_bound));
         // TODO: collect VM logs if the verbose flag (i.e, `self.verbose`) is set
 
         let now = Instant::now();
@@ -291,7 +302,12 @@ impl SharedTestingConfig {
         let test_run_info = TestRunInfo::new(
             function_name.to_string(),
             now.elapsed(),
-            self.execution_bound - gas_meter.remaining_gas().get(),
+            // TODO(Gas): This doesn't look quite right...
+            //            We're not computing the number of instructions executed even with a unit gas schedule.
+            Gas::new(self.execution_bound)
+                .checked_sub(gas_meter.remaining_gas())
+                .unwrap()
+                .into(),
         );
         match session.finish_with_extensions() {
             Ok((cs, _, extensions)) => (Ok(cs), Ok(extensions), return_result, test_run_info),

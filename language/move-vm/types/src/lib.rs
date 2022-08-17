@@ -23,10 +23,11 @@ macro_rules! debug_writeln {
 }
 
 pub mod data_store;
-pub mod gas_schedule;
+pub mod gas;
 pub mod loaded_data;
 pub mod natives;
 pub mod values;
+pub mod views;
 
 #[cfg(test)]
 mod unit_tests;

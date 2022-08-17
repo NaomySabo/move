@@ -4,7 +4,7 @@
 
 use crate::{
     logging::expect_no_verification_errors,
-    native_functions::{NativeFunction, NativeFunctions},
+    native_functions::{NativeFunction, NativeFunctions, UnboxedNativeFunction},
     session::LoadedFunctionInstantiation,
 };
 use move_binary_format::{
@@ -20,10 +20,11 @@ use move_binary_format::{
     },
     IndexKind,
 };
-use move_bytecode_verifier::{self, cyclic_dependencies, dependencies};
+use move_bytecode_verifier::{self, cyclic_dependencies, dependencies, VerifierConfig};
 use move_core_types::{
     identifier::{IdentStr, Identifier},
     language_storage::{ModuleId, StructTag, TypeTag},
+    metadata::Metadata,
     value::{MoveStructLayout, MoveTypeLayout},
     vm_status::StatusCode,
 };
@@ -441,16 +442,107 @@ pub(crate) struct Loader {
     module_cache: RwLock<ModuleCache>,
     type_cache: RwLock<TypeCache>,
     natives: NativeFunctions,
+
+    // The below field supports a hack to workaround well-known issues with the
+    // loader cache. This cache is not designed to support module upgrade or deletion.
+    // This leads to situations where the cache does not reflect the state of storage:
+    //
+    // 1. On module upgrade, the upgraded module is in storage, but the old one still in the cache.
+    // 2. On an abandoned code publishing transaction, the cache may contain a module which was
+    //    never committed to storage by the adapter.
+    //
+    // The solution is to add a flag to Loader marking it as 'invalidated'. For scenario (1),
+    // the VM sets the flag itself. For scenario (2), a public API allows the adapter to set
+    // the flag.
+    //
+    // If the cache is invalidated, it can (and must) still be used until there are no more
+    // sessions alive which are derived from a VM with this loader. This is because there are
+    // internal data structures derived from the loader which can become inconsistent. Therefore
+    // the adapter must explicitly call a function to flush the invalidated loader.
+    //
+    // This code (the loader) needs a complete refactoring. The new loader should
+    //
+    // - support upgrade and deletion of modules, while still preserving max cache lookup
+    //   performance. This is essential for a cache like this in a multi-tenant execution
+    //   environment.
+    // - should delegate lifetime ownership to the adapter. Code loading (including verification)
+    //   is a major execution bottleneck. We should be able to reuse a cache for the lifetime of
+    //   the adapter/node, not just a VM or even session (as effectively today).
+    invalidated: RwLock<bool>,
+
+    // Collects the cache hits on module loads. This information can be read and reset by
+    // an adapter to reason about read/write conflicts of code publishing transactions and
+    // other transactions.
+    module_cache_hits: RwLock<BTreeSet<ModuleId>>,
+
+    verifier_config: VerifierConfig,
 }
 
 impl Loader {
-    pub(crate) fn new(natives: NativeFunctions) -> Self {
+    pub(crate) fn new(natives: NativeFunctions, verifier_config: VerifierConfig) -> Self {
         Self {
             scripts: RwLock::new(ScriptCache::new()),
             module_cache: RwLock::new(ModuleCache::new()),
             type_cache: RwLock::new(TypeCache::new()),
             natives,
+            invalidated: RwLock::new(false),
+            module_cache_hits: RwLock::new(BTreeSet::new()),
+            verifier_config,
         }
+    }
+
+    /// Gets and clears module cache hits. A cache hit may also be caused indirectly by
+    /// loading a function or a type. This not only returns the direct hit, but also
+    /// indirect ones, that is all dependencies.
+    pub(crate) fn get_and_clear_module_cache_hits(&self) -> BTreeSet<ModuleId> {
+        let mut result = BTreeSet::new();
+        let hits: BTreeSet<ModuleId> = std::mem::take(&mut self.module_cache_hits.write());
+        for id in hits {
+            self.transitive_dep_closure(&id, &mut result)
+        }
+        result
+    }
+
+    fn transitive_dep_closure(&self, id: &ModuleId, visited: &mut BTreeSet<ModuleId>) {
+        if !visited.insert(id.clone()) {
+            return;
+        }
+        let entry = self.module_cache.read();
+        for dep in entry
+            .modules
+            .get(id)
+            .unwrap()
+            .module
+            .immediate_dependencies()
+        {
+            self.transitive_dep_closure(&dep, visited)
+        }
+    }
+
+    /// Flush this cache if it is marked as invalidated.
+    pub(crate) fn flush_if_invalidated(&self) {
+        let mut invalidated = self.invalidated.write();
+        if *invalidated {
+            *self.scripts.write() = ScriptCache::new();
+            *self.module_cache.write() = ModuleCache::new();
+            *self.type_cache.write() = TypeCache::new();
+            *invalidated = false;
+        }
+    }
+
+    /// Mark this cache as invalidated.
+    pub(crate) fn mark_as_invalid(&self) {
+        *self.invalidated.write() = true;
+    }
+
+    /// Copies metadata out of a modules bytecode if available.
+    pub(crate) fn get_metadata(&self, module: ModuleId, key: &[u8]) -> Option<Metadata> {
+        let cache = self.module_cache.read();
+        cache
+            .modules
+            .get(&module)
+            .and_then(|module| module.module.metadata.iter().find(|md| md.key == key))
+            .cloned()
     }
 
     //
@@ -545,7 +637,7 @@ impl Loader {
     // Script verification steps.
     // See `verify_module()` for module verification steps.
     fn verify_script(&self, script: &CompiledScript) -> VMResult<()> {
-        move_bytecode_verifier::verify_script(script)
+        move_bytecode_verifier::verify_script_with_config(&self.verifier_config, script)
     }
 
     fn verify_script_dependencies(
@@ -670,7 +762,7 @@ impl Loader {
         // module will NOT show up in `module_cache`. In the module republishing case, it means
         // that the old module is still in the `module_cache`, unless a new Loader is created,
         // which means that a new MoveVM instance needs to be created.
-        move_bytecode_verifier::verify_module(module)?;
+        move_bytecode_verifier::verify_module_with_config(&self.verifier_config, module)?;
         self.check_natives(module)?;
 
         let mut visited = BTreeSet::new();
@@ -844,6 +936,7 @@ impl Loader {
     ) -> VMResult<Arc<Module>> {
         // if the module is already in the code cache, load the cached version
         if let Some(cached) = self.module_cache.read().module_at(id) {
+            self.module_cache_hits.write().insert(id.clone());
             return Ok(cached);
         }
 
@@ -895,7 +988,8 @@ impl Loader {
             .map_err(expect_no_verification_errors)?;
 
         // bytecode verifier checks that can be performed with the module itself
-        move_bytecode_verifier::verify_module(&module).map_err(expect_no_verification_errors)?;
+        move_bytecode_verifier::verify_module_with_config(&self.verifier_config, &module)
+            .map_err(expect_no_verification_errors)?;
         self.check_natives(&module)
             .map_err(expect_no_verification_errors)?;
         Ok(module)
@@ -1250,6 +1344,7 @@ impl<'a> Resolver<'a> {
         Ok(instantiation)
     }
 
+    #[allow(unused)]
     pub(crate) fn type_params_count(&self, idx: FunctionInstantiationIndex) -> usize {
         let func_inst = match &self.binary {
             BinaryType::Module(module) => module.function_instantiation_at(idx.0),
@@ -1971,8 +2066,8 @@ impl Function {
         self.native.is_some()
     }
 
-    pub(crate) fn get_native(&self) -> PartialVMResult<NativeFunction> {
-        self.native.ok_or_else(|| {
+    pub(crate) fn get_native(&self) -> PartialVMResult<&UnboxedNativeFunction> {
+        self.native.as_deref().map(|f| &*f).ok_or_else(|| {
             PartialVMError::new(StatusCode::UNREACHABLE)
                 .with_message("Missing Native Function".to_string())
         })

@@ -10,20 +10,18 @@
 use better_any::{Tid, TidAble};
 use move_binary_format::errors::{PartialVMError, PartialVMResult};
 use move_core_types::{
-    account_address::AccountAddress,
-    gas_schedule::{GasAlgebra, GasCarrier, InternalGasUnits},
-    value::MoveTypeLayout,
-    vm_status::StatusCode,
+    account_address::AccountAddress, effects::Op, gas_algebra::InternalGas,
+    language_storage::TypeTag, value::MoveTypeLayout, vm_status::StatusCode,
 };
 use move_vm_runtime::{
     native_functions,
-    native_functions::{NativeContext, NativeFunctionTable},
+    native_functions::{NativeContext, NativeFunction, NativeFunctionTable},
 };
 use move_vm_types::{
     loaded_data::runtime_types::Type,
     natives::function::NativeResult,
     pop_arg,
-    values::{GlobalValue, GlobalValueEffect, Reference, StructRef, Value},
+    values::{GlobalValue, Reference, StructRef, Value},
 };
 use sha3::{Digest, Sha3_256};
 use smallvec::smallvec;
@@ -32,6 +30,7 @@ use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet, VecDeque},
     convert::TryInto,
     fmt::Display,
+    sync::Arc,
 };
 
 // ===========================================================================================
@@ -49,17 +48,38 @@ impl Display for TableHandle {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct TableInfo {
+    pub key_type: TypeTag,
+    pub value_type: TypeTag,
+}
+
+impl TableInfo {
+    pub fn new(key_type: TypeTag, value_type: TypeTag) -> Self {
+        Self {
+            key_type,
+            value_type,
+        }
+    }
+}
+
+impl Display for TableInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Table<{}, {}>", self.key_type, self.value_type)
+    }
+}
+
 /// A table change set.
 #[derive(Default)]
 pub struct TableChangeSet {
-    pub new_tables: BTreeSet<TableHandle>,
+    pub new_tables: BTreeMap<TableHandle, TableInfo>,
     pub removed_tables: BTreeSet<TableHandle>,
     pub changes: BTreeMap<TableHandle, TableChange>,
 }
 
 /// A change of a single table.
 pub struct TableChange {
-    pub entries: BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    pub entries: BTreeMap<Vec<u8>, Op<Vec<u8>>>,
 }
 
 /// A table resolver which needs to be provided by the environment. This allows to lookup
@@ -71,12 +91,7 @@ pub trait TableResolver {
         key: &[u8],
     ) -> Result<Option<Vec<u8>>, anyhow::Error>;
 
-    fn operation_cost(
-        &self,
-        op: TableOperation,
-        key_size: usize,
-        val_size: usize,
-    ) -> InternalGasUnits<GasCarrier>;
+    fn operation_cost(&self, op: TableOperation, key_size: usize, val_size: usize) -> InternalGas;
 }
 
 /// A table operation, for supporting cost calculation.
@@ -116,7 +131,7 @@ const _NOT_EMPTY: u64 = (102 << 8) + _ECATEGORY_INVALID_STATE as u64;
 /// of the overall context so we can mutate while still accessing the overall context.
 #[derive(Default)]
 struct TableData {
-    new_tables: BTreeSet<TableHandle>,
+    new_tables: BTreeMap<TableHandle, TableInfo>,
     removed_tables: BTreeSet<TableHandle>,
     tables: BTreeMap<TableHandle, Table>,
 }
@@ -163,15 +178,23 @@ impl<'a> NativeTableContext<'a> {
             } = table;
             let mut entries = BTreeMap::new();
             for (key, gv) in content {
-                match gv.into_effect()? {
-                    GlobalValueEffect::Deleted => {
-                        entries.insert(key, None);
+                let op = match gv.into_effect() {
+                    Some(op) => op,
+                    None => continue,
+                };
+
+                match op {
+                    Op::New(val) => {
+                        let bytes = serialize(&value_layout, &val)?;
+                        entries.insert(key, Op::New(bytes));
                     }
-                    GlobalValueEffect::Changed(new_val) => {
-                        let new_bytes = serialize(&value_layout, &new_val)?;
-                        entries.insert(key, Some(new_bytes));
+                    Op::Modify(val) => {
+                        let bytes = serialize(&value_layout, &val)?;
+                        entries.insert(key, Op::Modify(bytes));
                     }
-                    _ => {}
+                    Op::Delete => {
+                        entries.insert(key, Op::Delete);
+                    }
                 }
             }
             if !entries.is_empty() {
@@ -233,7 +256,8 @@ impl Table {
         self.content
             .entry(key_bytes)
             .or_insert_with(GlobalValue::none)
-            .move_to(val)?;
+            .move_to(val)
+            .map_err(|(err, _val)| err)?;
         Ok((key_size, val_size))
     }
 
@@ -319,26 +343,38 @@ impl Table {
 
 /// Returns all natives for tables.
 pub fn table_natives(table_addr: AccountAddress) -> NativeFunctionTable {
-    native_functions::make_table(
-        table_addr,
-        &[
-            ("Table", "new_table_handle", native_new_table_handle),
-            ("Table", "add_box", native_add_box),
-            ("Table", "borrow_box", native_borrow_box),
-            ("Table", "borrow_box_mut", native_borrow_box),
-            ("Table", "remove_box", native_remove_box),
-            ("Table", "contains_box", native_contains_box),
-            ("Table", "destroy_empty_box", native_destroy_empty_box),
-            ("Table", "drop_unchecked_box", native_drop_unchecked_box),
-        ],
-    )
+    let natives: [(&str, &str, NativeFunction); 8] = [
+        (
+            "table",
+            "new_table_handle",
+            Arc::new(native_new_table_handle),
+        ),
+        ("table", "add_box", Arc::new(native_add_box)),
+        ("table", "borrow_box", Arc::new(native_borrow_box)),
+        ("table", "borrow_box_mut", Arc::new(native_borrow_box)),
+        ("table", "remove_box", Arc::new(native_remove_box)),
+        ("table", "contains_box", Arc::new(native_contains_box)),
+        (
+            "table",
+            "destroy_empty_box",
+            Arc::new(native_destroy_empty_box),
+        ),
+        (
+            "table",
+            "drop_unchecked_box",
+            Arc::new(native_drop_unchecked_box),
+        ),
+    ];
+
+    native_functions::make_table_from_iter(table_addr, natives)
 }
 
 fn native_new_table_handle(
     context: &mut NativeContext,
-    mut _ty_args: Vec<Type>,
+    ty_args: Vec<Type>,
     args: VecDeque<Value>,
 ) -> PartialVMResult<NativeResult> {
+    assert_eq!(ty_args.len(), 2);
     assert!(args.is_empty());
 
     let table_context = context.extensions().get::<NativeTableContext>();
@@ -352,7 +388,12 @@ fn native_new_table_handle(
     Digest::update(&mut digest, table_data.new_tables.len().to_be_bytes());
     let bytes: [u8; 16] = digest.finalize()[0..16].try_into().unwrap();
     let id = u128::from_be_bytes(bytes);
-    assert!(table_data.new_tables.insert(TableHandle(id)));
+    let key_type = context.type_to_type_tag(&ty_args[0])?;
+    let value_type = context.type_to_type_tag(&ty_args[1])?;
+    assert!(table_data
+        .new_tables
+        .insert(TableHandle(id), TableInfo::new(key_type, value_type))
+        .is_none());
 
     Ok(NativeResult::ok(
         table_context
@@ -496,7 +537,7 @@ fn native_drop_unchecked_box(
     assert_eq!(ty_args.len(), 3);
     assert_eq!(args.len(), 1);
 
-    Ok(NativeResult::ok(InternalGasUnits::new(0_u64), smallvec![]))
+    Ok(NativeResult::ok(0.into(), smallvec![]))
 }
 
 // =========================================================================================

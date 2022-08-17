@@ -2,17 +2,15 @@
 // Copyright (c) The Move Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::loaded_data::runtime_types::Type;
+use crate::{loaded_data::runtime_types::Type, views::ValueView};
 use move_binary_format::{
     errors::*,
     file_format::{Constant, SignatureToken},
 };
 use move_core_types::{
     account_address::AccountAddress,
-    gas_schedule::{
-        AbstractMemorySize, GasAlgebra, GasCarrier, CONST_SIZE, MIN_EXISTS_DATA_SIZE,
-        REFERENCE_SIZE, STRUCT_SIZE,
-    },
+    effects::Op,
+    gas_algebra::AbstractMemorySize,
     value::{MoveStructLayout, MoveTypeLayout},
     vm_status::{sub_status::NFE_VECTOR_ERROR_BASE, StatusCode},
 };
@@ -21,7 +19,6 @@ use std::{
     fmt::{self, Debug, Display},
     iter,
     mem::size_of,
-    ops::Add,
     rc::Rc,
 };
 
@@ -30,7 +27,7 @@ use std::{
  * Internal Types
  *
  *   Internal representation of the Move value calculus. These types are abstractions
- *   over the concrete Move concepts and may carry additonal information that is not
+ *   over the concrete Move concepts and may carry additional information that is not
  *   defined by the language, but required by the implementation.
  *
  **************************************************************************************/
@@ -199,16 +196,6 @@ enum GlobalValueImpl {
 /// hold a resource.
 #[derive(Debug)]
 pub struct GlobalValue(GlobalValueImpl);
-
-/// Simple enum for the change state of a GlobalValue, used by `into_effect`.
-pub enum GlobalValueEffect<T> {
-    /// There was no value, or the value was not changed
-    None,
-    /// The value was removed
-    Deleted,
-    /// Updated with a new value
-    Changed(T),
-}
 
 /***************************************************************************************
  *
@@ -429,7 +416,7 @@ impl Value {
  *
  *   Equality tests of Move values. Errors are raised when types mismatch.
  *
- *   It is intented to NOT use or even implement the standard library traits Eq and
+ *   It is intended to NOT use or even implement the standard library traits Eq and
  *   Partial Eq due to:
  *     1. They do not allow errors to be returned.
  *     2. They can be invoked without the user being noticed thanks to operator
@@ -1138,6 +1125,30 @@ impl VMValueCast<Vec<u8>> for Value {
     }
 }
 
+impl VMValueCast<Vec<Value>> for Value {
+    fn cast(self) -> PartialVMResult<Vec<Value>> {
+        match self.0 {
+            ValueImpl::Container(Container::Vec(c)) => {
+                Ok(take_unique_ownership(c)?.into_iter().map(Value).collect())
+            }
+            ValueImpl::Address(_)
+            | ValueImpl::Bool(_)
+            | ValueImpl::U8(_)
+            | ValueImpl::U64(_)
+            | ValueImpl::U128(_) => Err(PartialVMError::new(StatusCode::INTERNAL_TYPE_ERROR)
+                .with_message(
+                    "cannot cast a specialized vector into a non-specialized one".to_string(),
+                )),
+            v => Err(
+                PartialVMError::new(StatusCode::INTERNAL_TYPE_ERROR).with_message(format!(
+                    "cannot cast {:?} to vector<non-specialized-type>",
+                    v,
+                )),
+            ),
+        }
+    }
+}
+
 impl VMValueCast<SignerRef> for Value {
     fn cast(self) -> PartialVMResult<SignerRef> {
         match self.0 {
@@ -1610,7 +1621,7 @@ impl VectorRef {
         Ok(Value(self.0.borrow_elem(idx)?))
     }
 
-    /// Returns a Refcell reference to the underlying vector of a `&vector<u8>` value.
+    /// Returns a RefCell reference to the underlying vector of a `&vector<u8>` value.
     pub fn as_bytes_ref(&self) -> std::cell::Ref<'_, Vec<u8>> {
         let c = self.0.container();
         match c {
@@ -1804,11 +1815,24 @@ impl Vector {
  * Gas
  *
  *   Abstract memory sizes of the VM values.
+ *   This should be deprecated soon.
  *
  **************************************************************************************/
 
+/// The size in bytes for a non-string or address constant on the stack
+const LEGACY_CONST_SIZE: AbstractMemorySize = AbstractMemorySize::new(16);
+
+/// The size in bytes for a reference on the stack
+const LEGACY_REFERENCE_SIZE: AbstractMemorySize = AbstractMemorySize::new(8);
+
+/// The size of a struct in bytes
+const LEGACY_STRUCT_SIZE: AbstractMemorySize = AbstractMemorySize::new(2);
+
+/// For exists checks on data that doesn't exists this is the multiplier that is used.
+const LEGACY_MIN_EXISTS_DATA_SIZE: AbstractMemorySize = AbstractMemorySize::new(100);
+
 impl Container {
-    fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    fn size(&self) -> AbstractMemorySize {
         match self {
             Self::Locals(r) | Self::Vec(r) | Self::Struct(r) => Struct::size_impl(&*r.borrow()),
             Self::VecU8(r) => AbstractMemorySize::new((r.borrow().len() * size_of::<u8>()) as u64),
@@ -1829,23 +1853,23 @@ impl Container {
 }
 
 impl ContainerRef {
-    fn size(&self) -> AbstractMemorySize<GasCarrier> {
-        REFERENCE_SIZE
+    fn size(&self) -> AbstractMemorySize {
+        LEGACY_REFERENCE_SIZE
     }
 }
 
 impl IndexedRef {
-    fn size(&self) -> AbstractMemorySize<GasCarrier> {
-        REFERENCE_SIZE
+    fn size(&self) -> AbstractMemorySize {
+        LEGACY_REFERENCE_SIZE
     }
 }
 
 impl ValueImpl {
-    fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    fn size(&self) -> AbstractMemorySize {
         use ValueImpl::*;
 
         match self {
-            Invalid | U8(_) | U64(_) | U128(_) | Bool(_) => CONST_SIZE,
+            Invalid | U8(_) | U64(_) | U128(_) | Bool(_) => LEGACY_CONST_SIZE,
             Address(_) => AbstractMemorySize::new(AccountAddress::LENGTH as u64),
             ContainerRef(r) => r.size(),
             IndexedRef(r) => r.size(),
@@ -1856,25 +1880,25 @@ impl ValueImpl {
 }
 
 impl Struct {
-    fn size_impl(fields: &[ValueImpl]) -> AbstractMemorySize<GasCarrier> {
+    fn size_impl(fields: &[ValueImpl]) -> AbstractMemorySize {
         fields
             .iter()
-            .fold(STRUCT_SIZE, |acc, v| acc.map2(v.size(), Add::add))
+            .fold(LEGACY_STRUCT_SIZE, |acc, v| acc + v.size())
     }
 
-    pub fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    pub fn size(&self) -> AbstractMemorySize {
         Self::size_impl(&self.fields)
     }
 }
 
 impl Value {
-    pub fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    pub fn size(&self) -> AbstractMemorySize {
         self.0.size()
     }
 }
 
 impl ReferenceImpl {
-    fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    fn size(&self) -> AbstractMemorySize {
         match self {
             Self::ContainerRef(r) => r.size(),
             Self::IndexedRef(r) => r.size(),
@@ -1883,18 +1907,18 @@ impl ReferenceImpl {
 }
 
 impl Reference {
-    pub fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    pub fn size(&self) -> AbstractMemorySize {
         self.0.size()
     }
 }
 
 impl GlobalValue {
-    pub fn size(&self) -> AbstractMemorySize<GasCarrier> {
+    pub fn size(&self) -> AbstractMemorySize {
         // REVIEW: this doesn't seem quite right. Consider changing it to
         // a constant positive size or better, something proportional to the size of the value.
         match &self.0 {
-            GlobalValueImpl::Fresh { .. } | GlobalValueImpl::Cached { .. } => REFERENCE_SIZE,
-            GlobalValueImpl::Deleted | GlobalValueImpl::None => MIN_EXISTS_DATA_SIZE,
+            GlobalValueImpl::Fresh { .. } | GlobalValueImpl::Cached { .. } => LEGACY_REFERENCE_SIZE,
+            GlobalValueImpl::Deleted | GlobalValueImpl::None => LEGACY_MIN_EXISTS_DATA_SIZE,
         }
     }
 }
@@ -1929,26 +1953,31 @@ impl Struct {
  **************************************************************************************/
 #[allow(clippy::unnecessary_wraps)]
 impl GlobalValueImpl {
-    fn cached(val: ValueImpl, status: GlobalDataStatus) -> PartialVMResult<Self> {
+    fn cached(
+        val: ValueImpl,
+        status: GlobalDataStatus,
+    ) -> Result<Self, (PartialVMError, ValueImpl)> {
         match val {
             ValueImpl::Container(Container::Struct(fields)) => {
                 let status = Rc::new(RefCell::new(status));
                 Ok(Self::Cached { fields, status })
             }
-            _ => Err(
+            val => Err((
                 PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
                     .with_message("failed to publish cached: not a resource".to_string()),
-            ),
+                val,
+            )),
         }
     }
 
-    fn fresh(val: ValueImpl) -> PartialVMResult<Self> {
+    fn fresh(val: ValueImpl) -> Result<Self, (PartialVMError, ValueImpl)> {
         match val {
             ValueImpl::Container(Container::Struct(fields)) => Ok(Self::Fresh { fields }),
-            _ => Err(
+            val => Err((
                 PartialVMError::new(StatusCode::UNKNOWN_INVARIANT_VIOLATION_ERROR)
                     .with_message("failed to publish fresh: not a resource".to_string()),
-            ),
+                val,
+            )),
         }
     }
 
@@ -1975,10 +2004,13 @@ impl GlobalValueImpl {
         Ok(ValueImpl::Container(Container::Struct(fields)))
     }
 
-    fn move_to(&mut self, val: ValueImpl) -> PartialVMResult<()> {
+    fn move_to(&mut self, val: ValueImpl) -> Result<(), (PartialVMError, ValueImpl)> {
         match self {
             Self::Fresh { .. } | Self::Cached { .. } => {
-                return Err(PartialVMError::new(StatusCode::RESOURCE_ALREADY_EXISTS))
+                return Err((
+                    PartialVMError::new(StatusCode::RESOURCE_ALREADY_EXISTS),
+                    val,
+                ))
             }
             Self::None => *self = Self::fresh(val)?,
             Self::Deleted => *self = Self::cached(val, GlobalDataStatus::Dirty)?,
@@ -2006,20 +2038,20 @@ impl GlobalValueImpl {
         }
     }
 
-    fn into_effect(self) -> PartialVMResult<GlobalValueEffect<ValueImpl>> {
-        Ok(match self {
-            Self::None => GlobalValueEffect::None,
-            Self::Deleted => GlobalValueEffect::Deleted,
+    fn into_effect(self) -> Option<Op<ValueImpl>> {
+        match self {
+            Self::None => None,
+            Self::Deleted => Some(Op::Delete),
             Self::Fresh { fields } => {
-                GlobalValueEffect::Changed(ValueImpl::Container(Container::Struct(fields)))
+                Some(Op::New(ValueImpl::Container(Container::Struct(fields))))
             }
             Self::Cached { fields, status } => match &*status.borrow() {
                 GlobalDataStatus::Dirty => {
-                    GlobalValueEffect::Changed(ValueImpl::Container(Container::Struct(fields)))
+                    Some(Op::Modify(ValueImpl::Container(Container::Struct(fields))))
                 }
-                GlobalDataStatus::Clean => GlobalValueEffect::None,
+                GlobalDataStatus::Clean => None,
             },
-        })
+        }
     }
 
     fn is_mutated(&self) -> bool {
@@ -2041,18 +2073,19 @@ impl GlobalValue {
     }
 
     pub fn cached(val: Value) -> PartialVMResult<Self> {
-        Ok(Self(GlobalValueImpl::cached(
-            val.0,
-            GlobalDataStatus::Clean,
-        )?))
+        Ok(Self(
+            GlobalValueImpl::cached(val.0, GlobalDataStatus::Clean).map_err(|(err, _val)| err)?,
+        ))
     }
 
     pub fn move_from(&mut self) -> PartialVMResult<Value> {
         Ok(Value(self.0.move_from()?))
     }
 
-    pub fn move_to(&mut self, val: Value) -> PartialVMResult<()> {
-        self.0.move_to(val.0)
+    pub fn move_to(&mut self, val: Value) -> Result<(), (PartialVMError, Value)> {
+        self.0
+            .move_to(val.0)
+            .map_err(|(err, val)| (err, Value(val)))
     }
 
     pub fn borrow_global(&self) -> PartialVMResult<Value> {
@@ -2063,12 +2096,8 @@ impl GlobalValue {
         self.0.exists()
     }
 
-    pub fn into_effect(self) -> PartialVMResult<GlobalValueEffect<Value>> {
-        Ok(match self.0.into_effect()? {
-            GlobalValueEffect::None => GlobalValueEffect::None,
-            GlobalValueEffect::Deleted => GlobalValueEffect::Deleted,
-            GlobalValueEffect::Changed(v) => GlobalValueEffect::Changed(Value(v)),
-        })
+    pub fn into_effect(self) -> Option<Op<Value>> {
+        self.0.into_effect().map(|op| op.map(Value))
     }
 
     pub fn is_mutated(&self) -> bool {
@@ -2607,7 +2636,7 @@ impl<'d, 'a> serde::de::Visitor<'d> for StructFieldVisitor<'a> {
 *
 * Constants
 *
-*   Implementation of deseserialization of constant data into a runtime value
+*   Implementation of deserialization of constant data into a runtime value
 *
 **************************************************************************************/
 
@@ -2634,6 +2663,56 @@ impl Value {
     pub fn deserialize_constant(constant: &Constant) -> Option<Value> {
         let layout = Self::constant_sig_token_to_layout(&constant.type_)?;
         Value::simple_deserialize(&constant.data, &layout)
+    }
+}
+
+/***************************************************************************************
+*
+* Views
+*
+**************************************************************************************/
+impl ValueView for ValueImpl {
+    fn legacy_abstract_memory_size(&self) -> AbstractMemorySize {
+        self.size()
+    }
+}
+
+impl ValueView for Value {
+    fn legacy_abstract_memory_size(&self) -> AbstractMemorySize {
+        self.0.legacy_abstract_memory_size()
+    }
+}
+
+impl Struct {
+    #[allow(clippy::needless_lifetimes)]
+    pub fn field_views<'a>(&'a self) -> impl ExactSizeIterator<Item = impl ValueView + 'a> {
+        self.fields.iter()
+    }
+}
+
+impl ValueView for Reference {
+    fn legacy_abstract_memory_size(&self) -> AbstractMemorySize {
+        self.size()
+    }
+}
+
+impl GlobalValue {
+    #[allow(clippy::needless_lifetimes)]
+    pub fn view<'a>(&'a self) -> Option<impl ValueView + 'a> {
+        use GlobalValueImpl as G;
+
+        struct Wrapper<'b>(&'b Rc<RefCell<Vec<ValueImpl>>>);
+
+        impl<'b> ValueView for Wrapper<'b> {
+            fn legacy_abstract_memory_size(&self) -> AbstractMemorySize {
+                Struct::size_impl(&*self.0.borrow())
+            }
+        }
+
+        match &self.0 {
+            G::None | G::Deleted => None,
+            G::Cached { fields, .. } | G::Fresh { fields } => Some(Wrapper(fields)),
+        }
     }
 }
 
