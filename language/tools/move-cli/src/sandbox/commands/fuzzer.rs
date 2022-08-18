@@ -132,11 +132,14 @@ pub fn run_one(
     use_temp_dir: bool,
     count: u64,
 ) -> anyhow::Result<(Option<ExecCoverageMapWithModules>, bool)> {
+
     let args_file = io::BufReader::new(File::open(args_path)?).lines();
     let cli_binary_path = cli_binary.canonicalize()?;
 
     // path where we will run the binary
-    let exe_dir = args_path.parent().unwrap();
+    let mut exe_dir = args_path.parent().unwrap();
+    // TODO: MAKE THIS PROPER
+    exe_dir = &Path::new(".");
     let temp_dir = if use_temp_dir {
         // symlink everything in the exe_dir into the temp_dir
         let dir = tempdir()?;
@@ -263,9 +266,9 @@ pub fn run_one(
     }
 
     // Copy the trace to the global-trace folders
-    let new_trace = format!("global-trace/trace{}", count);
-    File::create(&new_trace)?;
-    fs::copy(DEFAULT_TRACE_FILE, &new_trace)?;
+    // let new_trace = format!("global-trace/trace{}", count);
+    // File::create(&new_trace)?;
+    // fs::copy(DEFAULT_TRACE_FILE, &new_trace)?;
 
     // release the temporary workspace explicitly
     if let Some((t, _)) = temp_dir {
@@ -463,23 +466,23 @@ pub fn start_fuzz(
     let mut prev_count = 0;
     if Path::new(DEFAULT_GLOBAL_TRACE_PATH).exists() && resume {
         for entry in fs::read_dir(DEFAULT_GLOBAL_TRACE_PATH.to_owned())? {
-            let file = entry?;
-            let path = Some(file.path());
-            let prev_cov = match &path {
-                None => None,
-                Some(trace_path) => {
-                    if trace_path.exists() {
-                        Some(collect_coverage(trace_path, &build_output)?)
-                    } else {
-                        let file_path = PathBuf::from(trace_path);
-                        fs::write(file_path, "").expect("failed to write coverage");
-                        Some(collect_coverage(trace_path, &build_output)?)
-                    }
-                }
-            };
-            if let Some(cov) = prev_cov {
-                cov_info.merge(cov);
-            }
+            // let file = entry?;
+            // let path = Some(file.path());
+            // let prev_cov = match &path {
+            //     None => None,
+            //     Some(trace_path) => {
+            //         if trace_path.exists() {
+            //             Some(collect_coverage(trace_path, &build_output)?)
+            //         } else {
+            //             let file_path = PathBuf::from(trace_path);
+            //             fs::write(file_path, "").expect("failed to write coverage");
+            //             Some(collect_coverage(trace_path, &build_output)?)
+            //         }
+            //     }
+            // };
+            // if let Some(cov) = prev_cov {
+            //     cov_info.merge(cov);
+            // }
             prev_count += 1;
         }
     }
@@ -503,6 +506,35 @@ pub fn start_fuzz(
     // release the temporary workspace explicitly
     if let Some((t, _)) = temp_dir {
         t.close()?;
+    }
+
+    // If we are resuming the fuzzer, re-run the tests that gave new coverage (whether they passed
+    // or gave an error), to obtain the coverage info again
+    let new_cov_path = Path::new("fuzz-tests/new-coverage");
+    let err_new_cov_path = Path::new("fuzz-tests/error-new-coverage");
+    let dirs = vec![new_cov_path, err_new_cov_path];
+    if resume {
+        for p in dirs {
+            if Path::new(p).exists() {
+                for entry in fs::read_dir(p)? {
+                    let file = entry.unwrap();
+                    let path = "./".to_owned() + &file.path().as_path().display().to_string();
+                    if !path.contains(".exp") {
+                        println!("RE-RUNNING: {:#?}", path);
+                        // run_one(&PathBuf::from(path), cli_binary, use_temp_dir, 0)
+                        //     .expect("failed to re-run test upon resume");
+                        match run_one(&PathBuf::from(&path), cli_binary, use_temp_dir, 0) {
+                            Ok(tuple) => {
+                                if let Some(cov) = tuple.0 {
+                                    cov_info.merge(cov);
+                                }
+                            }
+                            Err(ex) => eprintln!("Test {:#?} failed with error: {}", &path, ex),
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Ok((tests, type_arg_pool, cov_info, prev_count, init_test))
@@ -665,6 +697,10 @@ pub fn move_tests(test_path: &String, folder_type: String) -> Result<String, any
         folder = "tested/";
     } else if folder_type == "NOT_RAN" {
         folder = "not-tested/";
+    } else if folder_type == "NEW_COV" {
+        folder = "new-coverage/"
+    } else if folder_type == "ERR_NEW_COV" {
+        folder = "error-new-coverage/"
     }
 
     let test_name = "fuzz-tests/".to_owned() + folder + test_path;
@@ -699,25 +735,17 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     let error_path = Path::new("fuzz-tests/tests-error");
     let ran_path = Path::new("fuzz-tests/tested");
     let not_ran_path = Path::new("fuzz-tests/not-tested");
+    let new_cov_path = Path::new("fuzz-tests/new-coverage");
+    let err_new_cov_path = Path::new("fuzz-tests/error-new-coverage");
     let global_trace = Path::new(DEFAULT_GLOBAL_TRACE_PATH);
 
-    fs::create_dir(global_trace).expect("Failed to create fuzz tests directory");
-    if let Some(p) = global_trace.parent() { fs::create_dir_all(p)? };
+    let paths = vec![fuzz_path, error_path, ran_path, not_ran_path, new_cov_path,
+                     err_new_cov_path, global_trace];
 
-    fs::create_dir(fuzz_path).expect("Failed to create fuzz tests directory");
-    if let Some(p) = fuzz_path.parent() { fs::create_dir_all(p)? };
-
-    // Create a subdirectory for tests that invoke errors in the target program
-    fs::create_dir(error_path).expect("Failed to create the error test directory");
-    if let Some(p) = error_path.parent() { fs::create_dir_all(p)? };
-
-    // Create a subdirectory for tests that have been run
-    fs::create_dir(ran_path).expect("Failed to create the tested directory");
-    if let Some(p) = ran_path.parent() { fs::create_dir_all(p)? };
-
-    // Create a subdirectory for tests that have not been run
-    fs::create_dir(not_ran_path).expect("Failed to create the not tested directory");
-    if let Some(p) = not_ran_path.parent() { fs::create_dir_all(p)? };
+    for p in paths {
+        fs::create_dir(p).expect("Failed to create fuzz tests directory");
+        if let Some(pa) = p.parent() { fs::create_dir_all(pa)? };
+    }
 
     Ok(())
 }
@@ -924,19 +952,27 @@ pub fn fuzzer(
 
         // Then, also add any tests already ran in the tests_ran hash set
         let ran_path = "./fuzz-tests/tested";
-        if Path::new(ran_path).exists() {
-            for entry in fs::read_dir(&ran_path)? {
-                let file = entry?;
-                let file_name = file.path().into_os_string().into_string().unwrap();
-                let len = file_name.chars().count();
-                let ending = &file_name[len - 3..len];
-                if ending != "exp" {
-                    let test_name = &file_name[20..len];
-                    tests_ran.insert(test_name.to_string());
+        let new_cov_path = "./fuzz-tests/new-coverage";
+        let tested_paths = [ran_path, new_cov_path];
+        for path in tested_paths {
+            if Path::new(path).exists() {
+                for entry in fs::read_dir(&path)? {
+                    let file = entry?;
+                    let file_path = file.path().into_os_string().into_string().unwrap();
+                    let splits: Vec<&str> = file_path.split('/').collect();
+                    let file_name = splits.last().unwrap().to_string();
+
+                    let len = file_name.chars().count();
+                    let ending = &file_name[len - 3..len];
+
+                    if ending != "exp" {
+                        tests_ran.insert(file_name);
+                    }
                 }
             }
         }
     }
+    println!("TESTS RAN {:#?}", tests_ran);
     let mut global_count = 0;
     if *resume {
         global_count = count;
@@ -995,8 +1031,12 @@ pub fn fuzzer(
                     count += 1;
 
                     // Copy the calls in the old test to the new test
-                    let path = "./fuzz-tests/tested/".to_owned() + &test_path.0;
-                    fs::copy(path, &new_test)
+                    // Old test could either be in the new-coverage folder, or the tested folder
+                    let mut path = "./fuzz-tests/tested/".to_owned() + &test_path.0;
+                    if !Path::new(&path).is_file() {
+                        path = "./fuzz-tests/new-coverage/".to_owned() + &test_path.0;
+                    }
+                    fs::copy(&path, &new_test)
                         .expect("Could not create new test from old test");
 
                     let file = OpenOptions::new().write(true).append(true)
@@ -1041,6 +1081,8 @@ pub fn fuzzer(
                                 let compiled_modules =
                                     &cov_info.compiled_modules;
 
+                                let mut new_cov = false;
+
                                 for i in &cov_info.module_maps {
                                     let module_summary =
                                         summarize_inst_cov_by_module(
@@ -1059,6 +1101,7 @@ pub fn fuzzer(
                                                     // This means that the current test reached a function that wasn't covered before
                                                     println!("{:#?} had an error, but reached this function for the first time: {:#?}", &test_path.0, &mod_func);
                                                     e.insert(fn_summary.covered);
+                                                    new_cov = true;
                                                 }
                                             }
                                             std::collections::hash_map::Entry::Occupied(mut e) => {
@@ -1066,15 +1109,22 @@ pub fn fuzzer(
                                                 if fn_summary.covered > *e.get() {
                                                     println!("{:#?} had an error, but gave new coverage in function: {:#?}", &test_path.0, &mod_func);
                                                     *e.get_mut() = fn_summary.covered;
+                                                    new_cov = true;
                                                 }
                                             }
                                         }
                                     }
                                 }
 
-                                //move this test to the error folder
-                                move_tests(&test_path.0, "ERROR".to_string()).
-                                    expect("Failed to move test to the error folder");
+                                if new_cov {
+                                    //move this test to the error folder
+                                    move_tests(&test_path.0, "ERR_NEW_COV".to_string()).
+                                        expect("Failed to move test to the error folder");
+                                } else {
+                                    //move this test to the error folder
+                                    move_tests(&test_path.0, "ERROR".to_string()).
+                                        expect("Failed to move test to the error folder");
+                                }
                             } else {
 
                                 // Let's check if this test generated any new coverage
@@ -1141,16 +1191,20 @@ pub fn fuzzer(
                                             // Push the new test to the queue
                                             pq.push(new_test, test_path.1 + 1);
                                             pq.push(test.0.to_string(), test.1);
+                                            // Move the test to the tested directory
+                                            move_tests(&test_path.0, "NEW_COV".to_string()).
+                                                expect("Failed to move test to the tested folder");
                                         } else {
                                             pq.push(test.0.to_string(), test.1 - 5);
+                                            // Move the test to the tested directory
+                                            move_tests(&test_path.0, "RAN".to_string()).
+                                                expect("Failed to move test to the tested folder");
                                         }
                                     }
                                     None => {}
                                 }
 
-                                // Move the test to the tested directory
-                                move_tests(&test_path.0, "RAN".to_string()).
-                                    expect("Failed to move test to the tested folder");
+
                             }
                             println!("{} test(s) ran.", test_passed);
                         }
