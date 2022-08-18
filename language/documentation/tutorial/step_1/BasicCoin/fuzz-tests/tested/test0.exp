@@ -1,9 +1,0 @@
-Command `sandbox publish`:
-Command `sandbox run storage/0x0000000000000000000000000000CAFE/modules/BasicCoin.mv --signers 0x24595368463C5613DD392EFFA4E975BF --args 18446744073709551614 -v mint`:
-Changed resource(s) under 1 address(es):
-  Changed 1 resource(s) under address 24595368463C5613DD392EFFA4E975BF:
-    Added type 0xcafe::BasicCoin::Coin: [254, 255, 255, 255, 255, 255, 255, 255] (wrote 41 bytes)
-      key 0xcafe::BasicCoin::Coin {
-          value: 18446744073709551614
-      }
-Wrote 41 bytes of resource ID's and data
