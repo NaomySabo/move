@@ -154,10 +154,10 @@ pub enum SandboxCommand {
         #[clap(long = "is-dpn")]
         is_dpn: bool,
         #[clap(name = "init-file", parse(try_from_str))]
-        // Initialize the script
+        // File containing the function to initialize the blockchain (if is-dpn is set to true)
         init_file: String,
         #[clap(name = "init-func", parse(try_from_str))]
-        // Initialize the script
+        // The function to initialize the blockchain (if is-dpn is set to true)
         init_func: String,
         #[clap(long = "resume", short = 'r')]
         resume: bool
@@ -208,8 +208,6 @@ impl SandboxCommand {
         move_args: &Move,
         storage_dir: &Path,
     ) -> Result<()> {
-        // println!("ARGS {:#?}", move_args);
-
         match self {
             SandboxCommand::Publish {
                 no_republish,

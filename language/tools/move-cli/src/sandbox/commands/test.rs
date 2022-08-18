@@ -361,7 +361,6 @@ pub fn run_all(
     for entry in find_filenames(&[args_path], |fpath| {
         fpath.file_name().expect("unexpected file entry path") == TEST_ARGS_FILENAME
     })? {
-        println!("{}", &entry);
         match run_one(Path::new(&entry), cli_binary, use_temp_dir, track_cov) {
             Ok(cov_opt) => {
                 test_passed = test_passed.checked_add(1).unwrap();

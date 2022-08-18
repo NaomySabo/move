@@ -17,7 +17,7 @@ module NamedAddr::BasicCoin {
         coin: Coin<CoinType>
     }
 
-    public(script) fun publish_balance<CoinType>(account: &signer) {
+    public fun publish_balance<CoinType>(account: &signer) {
         let empty_coin = Coin<CoinType> { value: 0 };
         assert!(!exists<Balance<CoinType>>(signer::address_of(account)), EALREADY_HAS_BALANCE);
         move_to(account, Balance<CoinType> { coin: empty_coin });
@@ -50,7 +50,7 @@ module NamedAddr::BasicCoin {
         include DepositSchema<CoinType> {addr: mint_addr, amount};
     }
 
-    public(script) fun balance_of<CoinType>(owner: address): u64 acquires Balance {
+    public fun balance_of<CoinType>(owner: address): u64 acquires Balance {
         borrow_global<Balance<CoinType>>(owner).coin.value
     }
 
