@@ -10,8 +10,12 @@
 use better_any::{Tid, TidAble};
 use move_binary_format::errors::{PartialVMError, PartialVMResult};
 use move_core_types::{
-    account_address::AccountAddress, effects::Op, gas_algebra::InternalGas,
-    language_storage::TypeTag, value::MoveTypeLayout, vm_status::StatusCode,
+    account_address::AccountAddress,
+    effects::Op,
+    gas_algebra::{InternalGas, InternalGasPerByte, NumBytes},
+    language_storage::TypeTag,
+    value::MoveTypeLayout,
+    vm_status::StatusCode,
 };
 use move_vm_runtime::{
     native_functions,
@@ -28,7 +32,6 @@ use smallvec::smallvec;
 use std::{
     cell::RefCell,
     collections::{btree_map::Entry, BTreeMap, BTreeSet, VecDeque},
-    convert::TryInto,
     fmt::Display,
     sync::Arc,
 };
@@ -40,7 +43,7 @@ use std::{
 /// hash over a transaction hash provided by the environment and a table creation counter
 /// local to the transaction.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq)]
-pub struct TableHandle(pub u128);
+pub struct TableHandle(pub AccountAddress);
 
 impl Display for TableHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -90,8 +93,6 @@ pub trait TableResolver {
         handle: &TableHandle,
         key: &[u8],
     ) -> Result<Option<Vec<u8>>, anyhow::Error>;
-
-    fn operation_cost(&self, op: TableOperation, key_size: usize, val_size: usize) -> InternalGas;
 }
 
 /// A table operation, for supporting cost calculation.
@@ -111,7 +112,7 @@ pub enum TableOperation {
 #[derive(Tid)]
 pub struct NativeTableContext<'a> {
     resolver: &'a dyn TableResolver,
-    txn_hash: u128,
+    txn_hash: [u8; 32],
     table_data: RefCell<TableData>,
 }
 
@@ -153,7 +154,7 @@ const HANDLE_FIELD_INDEX: usize = 0;
 impl<'a> NativeTableContext<'a> {
     /// Create a new instance of a native table context. This must be passed in via an
     /// extension into VM session functions.
-    pub fn new(txn_hash: u128, resolver: &'a dyn TableResolver) -> Self {
+    pub fn new(txn_hash: [u8; 32], resolver: &'a dyn TableResolver) -> Self {
         Self {
             resolver,
             txn_hash,
@@ -219,122 +220,50 @@ impl TableData {
         key_ty: &Type,
         value_ty: &Type,
     ) -> PartialVMResult<&mut Table> {
-        if let Entry::Vacant(e) = self.tables.entry(handle) {
-            let key_layout = get_type_layout(context, key_ty)?;
-            let value_layout = get_type_layout(context, value_ty)?;
-            let table = Table {
-                handle,
-                key_layout,
-                value_layout,
-                content: Default::default(),
-            };
-            e.insert(table);
-        }
-        Ok(self.tables.get_mut(&handle).unwrap())
+        Ok(match self.tables.entry(handle) {
+            Entry::Vacant(e) => {
+                let key_layout = get_type_layout(context, key_ty)?;
+                let value_layout = get_type_layout(context, value_ty)?;
+                let table = Table {
+                    handle,
+                    key_layout,
+                    value_layout,
+                    content: Default::default(),
+                };
+                e.insert(table)
+            }
+            Entry::Occupied(e) => e.into_mut(),
+        })
     }
 }
 
 impl Table {
-    /// Inserts a value into a table.
-    fn insert(
+    fn get_or_create_global_value(
         &mut self,
         context: &NativeTableContext,
-        key: &Value,
-        val: Value,
-    ) -> PartialVMResult<(usize, usize)> {
-        let (gv_opt, _, _) = self.global_value_if_exists(context, key)?;
-        if gv_opt.is_some() {
-            return Err(partial_abort_error(
-                "table entry already occupied",
-                ALREADY_EXISTS,
-            ));
-        }
-        let key_bytes = serialize(&self.key_layout, key)?;
-        let key_size = key_bytes.len();
-        // Need to serialize for cost computation
-        let val_size = serialize(&self.value_layout, &val)?.len();
-        self.content
-            .entry(key_bytes)
-            .or_insert_with(GlobalValue::none)
-            .move_to(val)
-            .map_err(|(err, _val)| err)?;
-        Ok((key_size, val_size))
-    }
-
-    /// Borrows a reference to a table (mutable or immutable).
-    fn borrow_global(
-        &mut self,
-        context: &NativeTableContext,
-        key: &Value,
-    ) -> PartialVMResult<(Value, usize, usize)> {
-        let (gv_opt, key_size, val_size) = self.global_value_if_exists(context, key)?;
-        let gv = gv_opt.ok_or_else(|| partial_abort_error("undefined table entry", NOT_FOUND))?;
-        let val = gv.borrow_global()?;
-        Ok((val, key_size, val_size))
-    }
-
-    /// Removes an entry from a table.
-    fn remove(
-        &mut self,
-        context: &NativeTableContext,
-        key: &Value,
-    ) -> PartialVMResult<(Value, usize, usize)> {
-        let (gv_opt, key_size, val_size) = self.global_value_if_exists(context, key)?;
-        let gv = gv_opt.ok_or_else(|| partial_abort_error("undefined table entry", NOT_FOUND))?;
-        let val = gv.move_from()?;
-        Ok((val, key_size, val_size))
-    }
-
-    /// Checks whether a key is in the table.
-    fn contains(
-        &mut self,
-        context: &NativeTableContext,
-        key: &Value,
-    ) -> PartialVMResult<(Value, usize, usize)> {
-        let (gv_opt, key_size, val_size) = self.global_value_if_exists(context, key)?;
-        Ok((Value::bool(gv_opt.is_some()), key_size, val_size))
-    }
-
-    /// Destroys a table.
-    fn destroy_empty(&mut self, _context: &NativeTableContext) -> PartialVMResult<(usize, usize)> {
-        Ok((0, 0))
-    }
-
-    /// Gets the global value of an entry in the table. Attempts to retrieve a value from
-    /// the resolver if needed. Aborts if the value does not exists. Also returns the size
-    /// of the key and value (if a value needs to be fetched from remote) for cost computation.
-    fn global_value_if_exists(
-        &mut self,
-        context: &NativeTableContext,
-        key: &Value,
-    ) -> PartialVMResult<(Option<&mut GlobalValue>, usize, usize)> {
-        let key_bytes = serialize(&self.key_layout, key)?;
-        let key_size = key_bytes.len();
-        let mut val_size = 0;
-        if !self.content.contains_key(&key_bytes) {
-            // Try to retrieve a value from the remote resolver.
-            let gv = match context
-                .resolver
-                .resolve_table_entry(&self.handle, &key_bytes)
-                .map_err(|err| {
-                    partial_extension_error(format!("remote table resolver failure: {}", err))
-                })? {
-                Some(val_bytes) => {
-                    val_size = val_bytes.len();
-                    let val = deserialize(&self.value_layout, &val_bytes)?;
-                    GlobalValue::cached(val)?
-                }
-                None => GlobalValue::none(),
-            };
-            self.content.insert(key_bytes.clone(), gv);
-        }
-
-        let gv = self.content.get_mut(&key_bytes).unwrap();
-        if gv.exists()? {
-            Ok((Some(gv), key_size, val_size))
-        } else {
-            Ok((None, key_size, val_size))
-        }
+        key: Vec<u8>,
+    ) -> PartialVMResult<(&mut GlobalValue, Option<Option<NumBytes>>)> {
+        Ok(match self.content.entry(key) {
+            Entry::Vacant(entry) => {
+                let (gv, loaded) = match context
+                    .resolver
+                    .resolve_table_entry(&self.handle, entry.key())
+                    .map_err(|err| {
+                        partial_extension_error(format!("remote table resolver failure: {}", err))
+                    })? {
+                    Some(val_bytes) => {
+                        let val = deserialize(&self.value_layout, &val_bytes)?;
+                        (
+                            GlobalValue::cached(val)?,
+                            Some(NumBytes::new(val_bytes.len() as u64)),
+                        )
+                    }
+                    None => (GlobalValue::none(), None),
+                };
+                (entry.insert(gv), Some(loaded))
+            }
+            Entry::Occupied(entry) => (entry.into_mut(), None),
+        })
     }
 }
 
@@ -342,34 +271,78 @@ impl Table {
 // Native Function Implementations
 
 /// Returns all natives for tables.
-pub fn table_natives(table_addr: AccountAddress) -> NativeFunctionTable {
+pub fn table_natives(table_addr: AccountAddress, gas_params: GasParameters) -> NativeFunctionTable {
     let natives: [(&str, &str, NativeFunction); 8] = [
         (
             "table",
             "new_table_handle",
-            Arc::new(native_new_table_handle),
+            make_native_new_table_handle(gas_params.new_table_handle),
         ),
-        ("table", "add_box", Arc::new(native_add_box)),
-        ("table", "borrow_box", Arc::new(native_borrow_box)),
-        ("table", "borrow_box_mut", Arc::new(native_borrow_box)),
-        ("table", "remove_box", Arc::new(native_remove_box)),
-        ("table", "contains_box", Arc::new(native_contains_box)),
+        (
+            "table",
+            "add_box",
+            make_native_add_box(gas_params.common.clone(), gas_params.add_box),
+        ),
+        (
+            "table",
+            "borrow_box",
+            make_native_borrow_box(gas_params.common.clone(), gas_params.borrow_box.clone()),
+        ),
+        (
+            "table",
+            "borrow_box_mut",
+            make_native_borrow_box(gas_params.common.clone(), gas_params.borrow_box),
+        ),
+        (
+            "table",
+            "remove_box",
+            make_native_remove_box(gas_params.common.clone(), gas_params.remove_box),
+        ),
+        (
+            "table",
+            "contains_box",
+            make_native_contains_box(gas_params.common, gas_params.contains_box),
+        ),
         (
             "table",
             "destroy_empty_box",
-            Arc::new(native_destroy_empty_box),
+            make_native_destroy_empty_box(gas_params.destroy_empty_box),
         ),
         (
             "table",
             "drop_unchecked_box",
-            Arc::new(native_drop_unchecked_box),
+            make_native_drop_unchecked_box(gas_params.drop_unchecked_box),
         ),
     ];
 
     native_functions::make_table_from_iter(table_addr, natives)
 }
 
+#[derive(Debug, Clone)]
+pub struct CommonGasParameters {
+    pub load_base: InternalGas,
+    pub load_per_byte: InternalGasPerByte,
+    pub load_failure: InternalGas,
+}
+
+impl CommonGasParameters {
+    fn calculate_load_cost(&self, loaded: Option<Option<NumBytes>>) -> InternalGas {
+        self.load_base
+            + match loaded {
+                Some(Some(num_bytes)) => self.load_per_byte * num_bytes,
+                Some(None) => self.load_failure,
+                None => 0.into(),
+            }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NewTableHandleGasParameters {
+    pub base: InternalGas,
+}
+
 fn native_new_table_handle(
+    gas_params: &NewTableHandleGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     args: VecDeque<Value>,
@@ -381,29 +354,45 @@ fn native_new_table_handle(
     let mut table_data = table_context.table_data.borrow_mut();
 
     // Take the transaction hash provided by the environment, combine it with the # of tables
-    // produced so far, sha256 this and select 16 bytes from the result. Given the txn hash
+    // produced so far, sha256 this to produce a unique handle. Given the txn hash
     // is unique, this should create a unique and deterministic global id.
     let mut digest = Sha3_256::new();
-    Digest::update(&mut digest, table_context.txn_hash.to_be_bytes());
-    Digest::update(&mut digest, table_data.new_tables.len().to_be_bytes());
-    let bytes: [u8; 16] = digest.finalize()[0..16].try_into().unwrap();
-    let id = u128::from_be_bytes(bytes);
+    let table_len = table_data.new_tables.len() as u32; // cast usize to u32 to ensure same length
+    Digest::update(&mut digest, table_context.txn_hash);
+    Digest::update(&mut digest, table_len.to_be_bytes());
+    let bytes = digest.finalize().to_vec();
+    let handle = AccountAddress::from_bytes(&bytes[0..AccountAddress::LENGTH])
+        .map_err(|_| partial_extension_error("Unable to create table handle"))?;
     let key_type = context.type_to_type_tag(&ty_args[0])?;
     let value_type = context.type_to_type_tag(&ty_args[1])?;
     assert!(table_data
         .new_tables
-        .insert(TableHandle(id), TableInfo::new(key_type, value_type))
+        .insert(TableHandle(handle), TableInfo::new(key_type, value_type))
         .is_none());
 
     Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::NewHandle, 0, 0),
-        smallvec![Value::u128(id)],
+        gas_params.base,
+        smallvec![Value::address(handle)],
     ))
 }
 
+pub fn make_native_new_table_handle(gas_params: NewTableHandleGasParameters) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_new_table_handle(&gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct AddBoxGasParameters {
+    pub base: InternalGas,
+    pub per_byte_serialized: InternalGasPerByte,
+}
+
 fn native_add_box(
+    common_gas_params: &CommonGasParameters,
+    gas_params: &AddBoxGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -418,19 +407,42 @@ fn native_add_box(
     let key = args.pop_back().unwrap();
     let handle = get_table_handle(&pop_arg!(args, StructRef))?;
 
-    let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
-    let status = table.insert(table_context, &key, val);
-    let (key_size, val_size) = status?;
+    let mut cost = gas_params.base;
 
-    Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::Insert, key_size, val_size),
-        smallvec![],
-    ))
+    let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
+
+    let key_bytes = serialize(&table.key_layout, &key)?;
+    cost += gas_params.per_byte_serialized * NumBytes::new(key_bytes.len() as u64);
+
+    let (gv, loaded) = table.get_or_create_global_value(table_context, key_bytes)?;
+    cost += common_gas_params.calculate_load_cost(loaded);
+
+    match gv.move_to(val) {
+        Ok(_) => Ok(NativeResult::ok(cost, smallvec![])),
+        Err(_) => Ok(NativeResult::err(cost, ALREADY_EXISTS)),
+    }
+}
+
+pub fn make_native_add_box(
+    common_gas_params: CommonGasParameters,
+    gas_params: AddBoxGasParameters,
+) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_add_box(&common_gas_params, &gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct BorrowBoxGasParameters {
+    pub base: InternalGas,
+    pub per_byte_serialized: InternalGasPerByte,
 }
 
 fn native_borrow_box(
+    common_gas_params: &CommonGasParameters,
+    gas_params: &BorrowBoxGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -445,17 +457,41 @@ fn native_borrow_box(
     let handle = get_table_handle(&pop_arg!(args, StructRef))?;
 
     let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
-    let (val, key_size, val_size) = table.borrow_global(table_context, &key)?;
 
-    Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::Borrow, key_size, val_size),
-        smallvec![val],
-    ))
+    let mut cost = gas_params.base;
+
+    let key_bytes = serialize(&table.key_layout, &key)?;
+    cost += gas_params.per_byte_serialized * NumBytes::new(key_bytes.len() as u64);
+
+    let (gv, loaded) = table.get_or_create_global_value(table_context, key_bytes)?;
+    cost += common_gas_params.calculate_load_cost(loaded);
+
+    match gv.borrow_global() {
+        Ok(ref_val) => Ok(NativeResult::ok(cost, smallvec![ref_val])),
+        Err(_) => Ok(NativeResult::err(cost, NOT_FOUND)),
+    }
+}
+
+pub fn make_native_borrow_box(
+    common_gas_params: CommonGasParameters,
+    gas_params: BorrowBoxGasParameters,
+) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_borrow_box(&common_gas_params, &gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct ContainsBoxGasParameters {
+    pub base: InternalGas,
+    pub per_byte_serialized: InternalGasPerByte,
 }
 
 fn native_contains_box(
+    common_gas_params: &CommonGasParameters,
+    gas_params: &ContainsBoxGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -470,17 +506,40 @@ fn native_contains_box(
     let handle = get_table_handle(&pop_arg!(args, StructRef))?;
 
     let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
-    let (val, key_size, val_size) = table.contains(table_context, &key)?;
 
-    Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::Contains, key_size, val_size),
-        smallvec![val],
-    ))
+    let mut cost = gas_params.base;
+
+    let key_bytes = serialize(&table.key_layout, &key)?;
+    cost += gas_params.per_byte_serialized * NumBytes::new(key_bytes.len() as u64);
+
+    let (gv, loaded) = table.get_or_create_global_value(table_context, key_bytes)?;
+    cost += common_gas_params.calculate_load_cost(loaded);
+
+    let exists = Value::bool(gv.exists()?);
+
+    Ok(NativeResult::ok(cost, smallvec![exists]))
+}
+
+pub fn make_native_contains_box(
+    common_gas_params: CommonGasParameters,
+    gas_params: ContainsBoxGasParameters,
+) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_contains_box(&common_gas_params, &gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct RemoveGasParameters {
+    pub base: InternalGas,
+    pub per_byte_serialized: InternalGasPerByte,
 }
 
 fn native_remove_box(
+    common_gas_params: &CommonGasParameters,
+    gas_params: &RemoveGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -493,18 +552,41 @@ fn native_remove_box(
 
     let key = args.pop_back().unwrap();
     let handle = get_table_handle(&pop_arg!(args, StructRef))?;
-    let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
-    let (val, key_size, val_size) = table.remove(table_context, &key)?;
 
-    Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::Remove, key_size, val_size),
-        smallvec![val],
-    ))
+    let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
+
+    let mut cost = gas_params.base;
+
+    let key_bytes = serialize(&table.key_layout, &key)?;
+    cost += gas_params.per_byte_serialized * NumBytes::new(key_bytes.len() as u64);
+
+    let (gv, loaded) = table.get_or_create_global_value(table_context, key_bytes)?;
+    cost += common_gas_params.calculate_load_cost(loaded);
+
+    match gv.move_from() {
+        Ok(val) => Ok(NativeResult::ok(cost, smallvec![val])),
+        Err(_) => Ok(NativeResult::err(cost, NOT_FOUND)),
+    }
+}
+
+pub fn make_native_remove_box(
+    common_gas_params: CommonGasParameters,
+    gas_params: RemoveGasParameters,
+) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_remove_box(&common_gas_params, &gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct DestroyEmptyBoxGasParameters {
+    pub base: InternalGas,
 }
 
 fn native_destroy_empty_box(
+    gas_params: &DestroyEmptyBoxGasParameters,
     context: &mut NativeContext,
     ty_args: Vec<Type>,
     mut args: VecDeque<Value>,
@@ -516,20 +598,29 @@ fn native_destroy_empty_box(
     let mut table_data = table_context.table_data.borrow_mut();
 
     let handle = get_table_handle(&pop_arg!(args, StructRef))?;
-    let table = table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
-    let (key_size, val_size) = table.destroy_empty(table_context)?;
+    // TODO: Can the following line be removed?
+    table_data.get_or_create_table(context, handle, &ty_args[0], &ty_args[2])?;
 
     assert!(table_data.removed_tables.insert(handle));
 
-    Ok(NativeResult::ok(
-        table_context
-            .resolver
-            .operation_cost(TableOperation::Destroy, key_size, val_size),
-        smallvec![],
-    ))
+    Ok(NativeResult::ok(gas_params.base, smallvec![]))
+}
+
+pub fn make_native_destroy_empty_box(gas_params: DestroyEmptyBoxGasParameters) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_destroy_empty_box(&gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct DropUncheckedBoxGasParameters {
+    pub base: InternalGas,
 }
 
 fn native_drop_unchecked_box(
+    gas_params: &DropUncheckedBoxGasParameters,
     _context: &mut NativeContext,
     ty_args: Vec<Type>,
     args: VecDeque<Value>,
@@ -537,17 +628,70 @@ fn native_drop_unchecked_box(
     assert_eq!(ty_args.len(), 3);
     assert_eq!(args.len(), 1);
 
-    Ok(NativeResult::ok(0.into(), smallvec![]))
+    Ok(NativeResult::ok(gas_params.base, smallvec![]))
+}
+
+pub fn make_native_drop_unchecked_box(gas_params: DropUncheckedBoxGasParameters) -> NativeFunction {
+    Arc::new(
+        move |context, ty_args, args| -> PartialVMResult<NativeResult> {
+            native_drop_unchecked_box(&gas_params, context, ty_args, args)
+        },
+    )
+}
+
+#[derive(Debug, Clone)]
+pub struct GasParameters {
+    pub common: CommonGasParameters,
+    pub new_table_handle: NewTableHandleGasParameters,
+    pub add_box: AddBoxGasParameters,
+    pub borrow_box: BorrowBoxGasParameters,
+    pub contains_box: ContainsBoxGasParameters,
+    pub remove_box: RemoveGasParameters,
+    pub destroy_empty_box: DestroyEmptyBoxGasParameters,
+    pub drop_unchecked_box: DropUncheckedBoxGasParameters,
+}
+
+impl GasParameters {
+    pub fn zeros() -> Self {
+        Self {
+            common: CommonGasParameters {
+                load_base: 0.into(),
+                load_per_byte: 0.into(),
+                load_failure: 0.into(),
+            },
+            new_table_handle: NewTableHandleGasParameters { base: 0.into() },
+            add_box: AddBoxGasParameters {
+                base: 0.into(),
+                per_byte_serialized: 0.into(),
+            },
+            borrow_box: BorrowBoxGasParameters {
+                base: 0.into(),
+                per_byte_serialized: 0.into(),
+            },
+            contains_box: ContainsBoxGasParameters {
+                base: 0.into(),
+                per_byte_serialized: 0.into(),
+            },
+            remove_box: RemoveGasParameters {
+                base: 0.into(),
+                per_byte_serialized: 0.into(),
+            },
+            destroy_empty_box: DestroyEmptyBoxGasParameters { base: 0.into() },
+            drop_unchecked_box: DropUncheckedBoxGasParameters { base: 0.into() },
+        }
+    }
 }
 
 // =========================================================================================
 // Helpers
 
 fn get_table_handle(table: &StructRef) -> PartialVMResult<TableHandle> {
-    let field_ref = table
+    let handle = table
         .borrow_field(HANDLE_FIELD_INDEX)?
-        .value_as::<Reference>()?;
-    field_ref.read_ref()?.value_as::<u128>().map(TableHandle)
+        .value_as::<Reference>()?
+        .read_ref()?
+        .value_as::<AccountAddress>()?;
+    Ok(TableHandle(handle))
 }
 
 fn serialize(layout: &MoveTypeLayout, val: &Value) -> PartialVMResult<Vec<u8>> {
@@ -562,12 +706,6 @@ fn deserialize(layout: &MoveTypeLayout, bytes: &[u8]) -> PartialVMResult<Value> 
 
 fn partial_extension_error(msg: impl ToString) -> PartialVMError {
     PartialVMError::new(StatusCode::VM_EXTENSION_ERROR).with_message(msg.to_string())
-}
-
-fn partial_abort_error(msg: impl ToString, code: u64) -> PartialVMError {
-    PartialVMError::new(StatusCode::ABORTED)
-        .with_message(msg.to_string())
-        .with_sub_status(code)
 }
 
 fn get_type_layout(context: &NativeContext, ty: &Type) -> PartialVMResult<MoveTypeLayout> {

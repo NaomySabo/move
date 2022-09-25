@@ -49,6 +49,10 @@ impl SpecPrinter<'_> {
                     v.iter().map(|e| format!("{:02x}", e)).join(""),
                 )),
             },
+            Value::AddressArray(v) => Self::doc(format!(
+                "x\"{}\"",
+                v.iter().map(|e| format!("@{:#x}", e)).join(""),
+            )),
         }
     }
 
@@ -535,7 +539,7 @@ impl SpecPrinter<'_> {
     {
         Self::concat([
             base,
-            Self::wrap("<", Self::sep_comma_space(items.into_iter().map(func)), ">"),
+            Self::wrap('<', Self::sep_comma_space(items.into_iter().map(func)), ">"),
         ])
     }
 

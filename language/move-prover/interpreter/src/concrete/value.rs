@@ -1139,6 +1139,11 @@ impl GlobalState {
         &self.touched_addresses
     }
 
+    /// Put new addresses to all the addresses that are touched by the bytecode
+    pub fn put_touched_addresses(&mut self, addresses: &[AccountAddress]) {
+        self.touched_addresses.extend(addresses);
+    }
+
     /// Calculate the delta (i.e., a ChangeSet) against the old state
     pub fn delta(&self, old_state: &GlobalState) -> ChangeSet {
         fn bcs_serialize_resource(key: &StructInstantiation, val: &BaseValue) -> Vec<u8> {
@@ -1271,8 +1276,7 @@ impl EvalState {
     pub fn all_addresses(&self) -> BTreeSet<AccountAddress> {
         self.saved_memory
             .values()
-            .map(|v1| v1.values().map(|v2| v2.values().map(|v3| v3.keys())))
-            .flatten()
+            .flat_map(|v1| v1.values().map(|v2| v2.values().map(|v3| v3.keys())))
             .flatten()
             .flatten()
             .copied()

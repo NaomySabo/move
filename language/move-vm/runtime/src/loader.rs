@@ -507,14 +507,15 @@ impl Loader {
         if !visited.insert(id.clone()) {
             return;
         }
-        let entry = self.module_cache.read();
-        for dep in entry
+        let deps = self
+            .module_cache
+            .read()
             .modules
             .get(id)
             .unwrap()
             .module
-            .immediate_dependencies()
-        {
+            .immediate_dependencies();
+        for dep in deps {
             self.transitive_dep_closure(&dep, visited)
         }
     }
@@ -832,31 +833,34 @@ impl Loader {
         )
     }
 
-    // All native functions must be known to the loader
+    // All native functions must be known to the loader, unless we are compiling with feature
+    // `lazy_natives`.
     fn check_natives(&self, module: &CompiledModule) -> VMResult<()> {
         fn check_natives_impl(loader: &Loader, module: &CompiledModule) -> PartialVMResult<()> {
-            for (idx, native_function) in module
-                .function_defs()
-                .iter()
-                .filter(|fdv| fdv.is_native())
-                .enumerate()
-            {
-                let fh = module.function_handle_at(native_function.function);
-                let mh = module.module_handle_at(fh.module);
-                loader
-                    .natives
-                    .resolve(
-                        module.address_identifier_at(mh.address),
-                        module.identifier_at(mh.name).as_str(),
-                        module.identifier_at(fh.name).as_str(),
-                    )
-                    .ok_or_else(|| {
-                        verification_error(
-                            StatusCode::MISSING_DEPENDENCY,
-                            IndexKind::FunctionHandle,
-                            idx as TableIndex,
+            if !cfg!(feature = "lazy_natives") {
+                for (idx, native_function) in module
+                    .function_defs()
+                    .iter()
+                    .filter(|fdv| fdv.is_native())
+                    .enumerate()
+                {
+                    let fh = module.function_handle_at(native_function.function);
+                    let mh = module.module_handle_at(fh.module);
+                    loader
+                        .natives
+                        .resolve(
+                            module.address_identifier_at(mh.address),
+                            module.identifier_at(mh.name).as_str(),
+                            module.identifier_at(fh.name).as_str(),
                         )
-                    })?;
+                        .ok_or_else(|| {
+                            verification_error(
+                                StatusCode::MISSING_DEPENDENCY,
+                                IndexKind::FunctionHandle,
+                                idx as TableIndex,
+                            )
+                        })?;
+                }
             }
             // TODO: fix check and error code if we leave something around for native structs.
             // For now this generates the only error test cases care about...
@@ -1839,7 +1843,7 @@ impl Script {
         let type_parameters = script.type_parameters.clone();
         // TODO: main does not have a name. Revisit.
         let name = Identifier::new("main").unwrap();
-        let native = None; // Script entries cannot be native
+        let (native, def_is_native) = (None, false); // Script entries cannot be native
         let main: Arc<Function> = Arc::new(Function {
             file_format_version: script.version(),
             index: FunctionDefinitionIndex(0),
@@ -1849,6 +1853,7 @@ impl Script {
             locals,
             type_parameters,
             native,
+            def_is_native,
             scope,
             name,
         });
@@ -1940,6 +1945,7 @@ pub(crate) struct Function {
     locals: Signature,
     type_parameters: Vec<AbilitySet>,
     native: Option<NativeFunction>,
+    def_is_native: bool,
     scope: Scope,
     name: Identifier,
 }
@@ -1954,14 +1960,17 @@ impl Function {
         let handle = module.function_handle_at(def.function);
         let name = module.identifier_at(handle.name).to_owned();
         let module_id = module.self_id();
-        let native = if def.is_native() {
-            natives.resolve(
-                module_id.address(),
-                module_id.name().as_str(),
-                name.as_str(),
+        let (native, def_is_native) = if def.is_native() {
+            (
+                natives.resolve(
+                    module_id.address(),
+                    module_id.name().as_str(),
+                    name.as_str(),
+                ),
+                true,
             )
         } else {
-            None
+            (None, false)
         };
         let scope = Scope::Module(module_id);
         let parameters = module.signature_at(handle.parameters).clone();
@@ -1991,6 +2000,7 @@ impl Function {
             locals,
             type_parameters,
             native,
+            def_is_native,
             scope,
             name,
         }
@@ -2063,14 +2073,24 @@ impl Function {
     }
 
     pub(crate) fn is_native(&self) -> bool {
-        self.native.is_some()
+        self.def_is_native
     }
 
     pub(crate) fn get_native(&self) -> PartialVMResult<&UnboxedNativeFunction> {
-        self.native.as_deref().map(|f| &*f).ok_or_else(|| {
-            PartialVMError::new(StatusCode::UNREACHABLE)
-                .with_message("Missing Native Function".to_string())
-        })
+        if cfg!(feature = "lazy_natives") {
+            // If lazy_natives is configured, this is a MISSING_DEPENDENCY error, as we skip
+            // checking those at module loading time.
+            self.native.as_deref().ok_or_else(|| {
+                PartialVMError::new(StatusCode::MISSING_DEPENDENCY)
+                    .with_message(format!("Missing Native Function `{}`", self.name))
+            })
+        } else {
+            // Otherwise this error should not happen, hence UNREACHABLE
+            self.native.as_deref().ok_or_else(|| {
+                PartialVMError::new(StatusCode::UNREACHABLE)
+                    .with_message("Missing Native Function".to_string())
+            })
+        }
     }
 }
 

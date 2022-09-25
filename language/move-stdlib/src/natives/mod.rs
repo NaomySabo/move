@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod bcs;
+pub mod debug;
 pub mod event;
 pub mod hash;
 pub mod signer;
@@ -10,9 +11,6 @@ pub mod string;
 #[cfg(feature = "testing")]
 pub mod unit_test;
 pub mod vector;
-
-#[cfg(feature = "testing")]
-pub mod debug;
 
 mod helpers;
 
@@ -36,70 +34,54 @@ impl GasParameters {
         Self {
             bcs: bcs::GasParameters {
                 to_bytes: bcs::ToBytesGasParameters {
-                    input_unit_cost: 0.into(),
-                    output_unit_cost: 0.into(),
+                    per_byte_serialized: 0.into(),
                     legacy_min_output_size: 0.into(),
-                    failure_cost: 0.into(),
+                    failure: 0.into(),
                 },
             },
 
             hash: hash::GasParameters {
                 sha2_256: hash::Sha2_256GasParameters {
-                    base_cost: 0.into(),
-                    unit_cost: 0.into(),
+                    base: 0.into(),
+                    per_byte: 0.into(),
                     legacy_min_input_len: 0.into(),
                 },
                 sha3_256: hash::Sha3_256GasParameters {
-                    base_cost: 0.into(),
-                    unit_cost: 0.into(),
+                    base: 0.into(),
+                    per_byte: 0.into(),
                     legacy_min_input_len: 0.into(),
                 },
             },
             signer: signer::GasParameters {
-                borrow_address: signer::BorrowAddressGasParameters {
-                    base_cost: 0.into(),
-                },
+                borrow_address: signer::BorrowAddressGasParameters { base: 0.into() },
             },
             string: string::GasParameters {
                 check_utf8: string::CheckUtf8GasParameters {
-                    base_cost: 0.into(),
-                    unit_cost: 0.into(),
+                    base: 0.into(),
+                    per_byte: 0.into(),
                 },
-                is_char_boundary: string::IsCharBoundaryGasParameters {
-                    base_cost: 0.into(),
-                },
+                is_char_boundary: string::IsCharBoundaryGasParameters { base: 0.into() },
                 sub_string: string::SubStringGasParameters {
-                    base_cost: 0.into(),
-                    unit_cost: 0.into(),
+                    base: 0.into(),
+                    per_byte: 0.into(),
                 },
                 index_of: string::IndexOfGasParameters {
-                    base_cost: 0.into(),
-                    unit_cost: 0.into(),
+                    base: 0.into(),
+                    per_byte_pattern: 0.into(),
+                    per_byte_searched: 0.into(),
                 },
             },
             vector: vector::GasParameters {
-                empty: vector::EmptyGasParameters {
-                    base_cost: 0.into(),
-                },
-                length: vector::LengthGasParameters {
-                    base_cost: 0.into(),
-                },
+                empty: vector::EmptyGasParameters { base: 0.into() },
+                length: vector::LengthGasParameters { base: 0.into() },
                 push_back: vector::PushBackGasParameters {
-                    base_cost: 0.into(),
-                    legacy_unit_cost: 0.into(),
+                    base: 0.into(),
+                    legacy_per_abstract_memory_unit: 0.into(),
                 },
-                borrow: vector::BorrowGasParameters {
-                    base_cost: 0.into(),
-                },
-                pop_back: vector::PopBackGasParameters {
-                    base_cost: 0.into(),
-                },
-                destroy_empty: vector::DestroyEmptyGasParameters {
-                    base_cost: 0.into(),
-                },
-                swap: vector::SwapGasParameters {
-                    base_cost: 0.into(),
-                },
+                borrow: vector::BorrowGasParameters { base: 0.into() },
+                pop_back: vector::PopBackGasParameters { base: 0.into() },
+                destroy_empty: vector::DestroyEmptyGasParameters { base: 0.into() },
+                swap: vector::SwapGasParameters { base: 0.into() },
             },
             #[cfg(feature = "testing")]
             unit_test: unit_test::GasParameters {
@@ -142,8 +124,6 @@ pub fn all_natives(
 #[derive(Debug, Clone)]
 pub struct NurseryGasParameters {
     event: event::GasParameters,
-
-    #[cfg(feature = "testing")]
     debug: debug::GasParameters,
 }
 
@@ -155,7 +135,6 @@ impl NurseryGasParameters {
                     unit_cost: 0.into(),
                 },
             },
-            #[cfg(feature = "testing")]
             debug: debug::GasParameters {
                 print: debug::PrintGasParameters {
                     base_cost: 0.into(),
@@ -183,10 +162,7 @@ pub fn nursery_natives(
     }
 
     add_natives!("event", event::make_all(gas_params.event));
-    #[cfg(feature = "testing")]
-    {
-        add_natives!("debug", debug::make_all(gas_params.debug));
-    }
+    add_natives!("debug", debug::make_all(gas_params.debug));
 
     make_table_from_iter(move_std_addr, natives)
 }

@@ -9,6 +9,8 @@ Move is a programming language for writing safe smart contracts originally devel
 
 This repository is the official home of the Move virtual machine, bytecode verifier, compiler, prover, package manager, and book. For Move code examples and papers, check out [awesome-move](https://github.com/MystenLabs/awesome-move). You can also reference the Diem blockchain.
 
+Follow the [language/documentation/tutorial](./language/documentation/tutorial/README.md) to set up move for development.
+
 ## Community
 
 * Join us on the [Move Discord](https://discord.gg/cPUmhe24Mz).

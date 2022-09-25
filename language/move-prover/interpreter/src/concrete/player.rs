@@ -4,8 +4,9 @@
 
 //! This file implements the statement interpretation part of the stackless bytecode interpreter.
 
-use num::{BigInt, ToPrimitive, Zero};
 use std::{collections::BTreeMap, rc::Rc};
+
+use num::{BigInt, ToPrimitive, Zero};
 
 use bytecode_interpreter_crypto::{
     ed25519_deserialize_public_key, ed25519_deserialize_signature, ed25519_verify_signature,
@@ -40,7 +41,7 @@ use crate::{
             convert_model_base_type, convert_model_local_type, convert_model_partial_struct_type,
             convert_model_struct_type, BaseType, CodeOffset, Type,
         },
-        value::{EvalState, GlobalState, LocalSlot, Pointer, TypedValue},
+        value::{BaseValue, EvalState, GlobalState, LocalSlot, Pointer, TypedValue},
     },
     shared::variant::choose_variant,
 };
@@ -109,6 +110,22 @@ impl<'env> FunctionContext<'env> {
     // execution
     //
 
+    /// Collect addresses stored in the value recursively
+    fn collect_addresses(val: &BaseValue, addresses: &mut Vec<AccountAddress>) {
+        match val {
+            BaseValue::Address(v) | BaseValue::Signer(v) => {
+                addresses.push(*v);
+            }
+            BaseValue::Vector(vec) | BaseValue::Struct(vec) => {
+                for (_, val) in vec.iter().enumerate() {
+                    Self::collect_addresses(val, addresses);
+                }
+            }
+            BaseValue::Bool(_) => (),
+            BaseValue::Int(_) => (),
+        }
+    }
+
     /// Execute a user function with value arguments.
     pub fn exec_user_function(
         &self,
@@ -117,6 +134,14 @@ impl<'env> FunctionContext<'env> {
         global_state: &mut GlobalState,
         eval_state: &mut EvalState,
     ) -> ExecResult<LocalState> {
+        // collect addresses
+        for (_, typed_arg) in typed_args.iter().enumerate() {
+            let mut addresses = vec![];
+            Self::collect_addresses(typed_arg.get_val(), &mut addresses);
+            global_state.put_touched_addresses(&addresses);
+        }
+
+        // execute the user function
         let instructions = self.target.get_bytecode();
         let debug_bytecode = self.get_settings().verbose_bytecode;
         let mut local_state = self.prepare_local_state(skip_specs, typed_args);
@@ -186,7 +211,7 @@ impl<'env> FunctionContext<'env> {
                     assert_eq!(srcs.len(), 2);
                 }
                 self.native_vector_borrow_mut(
-                    *srcs.get(0).unwrap(),
+                    *srcs.first().unwrap(),
                     dummy_state.del_value(0),
                     dummy_state.del_value(1),
                 )
@@ -198,7 +223,7 @@ impl<'env> FunctionContext<'env> {
                 }
                 let res = self
                     .native_vector_push_back(dummy_state.del_value(0), dummy_state.del_value(1));
-                local_state.put_value_override(*srcs.get(0).unwrap(), res);
+                local_state.put_value_override(*srcs.first().unwrap(), res);
                 Ok(vec![])
             }
             (DIEM_CORE_ADDR, "vector", "pop_back") => {
@@ -208,7 +233,7 @@ impl<'env> FunctionContext<'env> {
                 let res = self.native_vector_pop_back(dummy_state.del_value(0));
                 match res {
                     Ok((new_vec, elem_val)) => {
-                        local_state.put_value_override(*srcs.get(0).unwrap(), new_vec);
+                        local_state.put_value_override(*srcs.first().unwrap(), new_vec);
                         Ok(vec![elem_val])
                     }
                     Err(e) => Err(e),
@@ -221,7 +246,7 @@ impl<'env> FunctionContext<'env> {
                 let res = self.native_vector_destroy_empty(dummy_state.del_value(0));
                 match res {
                     Ok(_) => {
-                        local_state.del_value(*srcs.get(0).unwrap());
+                        local_state.del_value(*srcs.first().unwrap());
                         Ok(vec![])
                     }
                     Err(e) => Err(e),
@@ -238,7 +263,7 @@ impl<'env> FunctionContext<'env> {
                 );
                 match res {
                     Ok(new_vec) => {
-                        local_state.put_value_override(*srcs.get(0).unwrap(), new_vec);
+                        local_state.put_value_override(*srcs.first().unwrap(), new_vec);
                         Ok(vec![])
                     }
                     Err(e) => Err(e),
@@ -422,6 +447,17 @@ impl<'env> FunctionContext<'env> {
                 let elems = v.iter().map(|e| TypedValue::mk_u8(*e)).collect();
                 TypedValue::mk_vector(BaseType::mk_u8(), elems)
             }
+            Constant::AddressArray(v) => {
+                let elems = v
+                    .iter()
+                    .map(|e| {
+                        TypedValue::mk_address(
+                            AccountAddress::from_hex_literal(&format!("{:#x}", *e)).unwrap(),
+                        )
+                    })
+                    .collect();
+                TypedValue::mk_vector(BaseType::mk_address(), elems)
+            }
         };
         local_state.put_value_override(dst, val);
     }
@@ -472,8 +508,8 @@ impl<'env> FunctionContext<'env> {
             }
             Operation::Havoc(kind) => {
                 if cfg!(debug_assertions) {
-                    assert_eq!(srcs.len(), 1);
-                    let target_ty = local_state.get_type(*srcs.get(0).unwrap());
+                    assert_eq!(dsts.len(), 1);
+                    let target_ty = local_state.get_type(*dsts.first().unwrap());
                     match kind {
                         HavocKind::Value => {
                             assert!(target_ty.is_base());
