@@ -3163,6 +3163,7 @@ dependencies = [
  "httpmock",
  "itertools 0.10.1",
  "lazy_static 1.4.0",
+ "log 0.4.17",
  "move-binary-format",
  "move-bytecode-source-map",
  "move-bytecode-utils",

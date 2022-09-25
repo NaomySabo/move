@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{sandbox::utils::module, DEFAULT_BUILD_DIR, DEFAULT_STORAGE_DIR, sandbox};
-
 use move_command_line_common::{env::read_bool_env_var, files::{path_to_string},
-    testing::{format_diff, EXP_EXT}};
+                               testing::{format_diff, EXP_EXT}};
 use move_compiler::command_line::COLOR_MODE_ENV_VAR;
 use move_coverage::summary::{summarize_inst_cov_by_module};
 use move_coverage::coverage_map::{CoverageMap, ExecCoverageMapWithModules};
@@ -58,34 +57,36 @@ const BACKUP_QUEUE: &str = "backup_queue.qf";
 const TEMP_QUEUE: &str = "temp_queue.qf";
 
 const FUZZ_TEST_DIR: &str = "fuzz-tests/";
-const PASSED_DIR: &str = "passed/";
-const ERROR_DIR: &str = "error/";
+const PASSED_DIR: &str = "tested-passed/";
+const ERROR_DIR: &str = "tested-error/";
 const NOT_TESTED_DIR: &str = "not-tested/";
 const NEW_COV_DIR: &str = "new-coverage/";
 const NO_NEW_COV_DIR: &str = "no-new-coverage/";
 
 #[derive(PartialEq, Clone)]
-enum FuzzPath { Fuzz, Passed, Err, PassedNoNewCov, PassedNewCov, ErrNoNewCov, ErrNewCov, NotTested }
-
-fn get_path(path_type: FuzzPath) -> String {
-    match path_type {
-        FuzzPath::Fuzz => FUZZ_TEST_DIR.to_owned(),
-        FuzzPath::Passed => FUZZ_TEST_DIR.to_owned() + PASSED_DIR,
-        FuzzPath::Err => FUZZ_TEST_DIR.to_owned() + ERROR_DIR,
-        FuzzPath::PassedNoNewCov => FUZZ_TEST_DIR.to_owned() + PASSED_DIR + NO_NEW_COV_DIR,
-        FuzzPath::PassedNewCov => FUZZ_TEST_DIR.to_owned() + PASSED_DIR + NEW_COV_DIR,
-        FuzzPath::ErrNoNewCov => FUZZ_TEST_DIR.to_owned() + ERROR_DIR + NO_NEW_COV_DIR,
-        FuzzPath::ErrNewCov => FUZZ_TEST_DIR.to_owned() + ERROR_DIR + NEW_COV_DIR,
-        FuzzPath::NotTested => FUZZ_TEST_DIR.to_owned() + NOT_TESTED_DIR,
+enum FuzzPath {Fuzz, Passed, Err, PassedNoNewCov, PassedNewCov, ErrNoNewCov, ErrNewCov, NotTested}
+impl FuzzPath {
+    fn get_path(&self) -> String {
+        match self {
+            FuzzPath::Fuzz => FUZZ_TEST_DIR.to_owned(),
+            FuzzPath::Passed => FUZZ_TEST_DIR.to_owned() + PASSED_DIR,
+            FuzzPath::Err => FUZZ_TEST_DIR.to_owned() + ERROR_DIR,
+            FuzzPath::PassedNoNewCov => FUZZ_TEST_DIR.to_owned() + PASSED_DIR + NO_NEW_COV_DIR,
+            FuzzPath::PassedNewCov => FUZZ_TEST_DIR.to_owned() + PASSED_DIR + NEW_COV_DIR,
+            FuzzPath::ErrNoNewCov => FUZZ_TEST_DIR.to_owned() + ERROR_DIR + NO_NEW_COV_DIR,
+            FuzzPath::ErrNewCov => FUZZ_TEST_DIR.to_owned() + ERROR_DIR + NEW_COV_DIR,
+            FuzzPath::NotTested => FUZZ_TEST_DIR.to_owned() + NOT_TESTED_DIR,
+        }
     }
 }
+
 
 struct TestTemplate {
     mod_addr: AccountAddress,
     mod_name: String,
     func_name: String,
     params: Vec<SignatureToken>,
-    type_args: bool,
+    type_args: bool, // TODO: MAKE THIS AN INT
 }
 
 fn collect_coverage(
@@ -129,11 +130,6 @@ fn collect_coverage(
         .to_unified_exec_map()
         .into_coverage_map_with_modules(filter);
 
-
-    let path = "coverage_map";
-    let mut output = File::create(path)?;
-    write!(output, "{:#?}", coverage_map).expect("Failed to write to coverage map file");
-
     Ok(coverage_map)
 }
 
@@ -147,9 +143,9 @@ pub fn run_one(
     let cli_binary_path = cli_binary.canonicalize()?;
 
     // path where we will run the binary
-    let mut exe_dir = args_path.parent().unwrap();
+    // let mut exe_dir = args_path.parent().unwrap();
     // TODO: MAKE THIS PROPER
-    exe_dir = &Path::new(".");
+    let exe_dir = Path::new(".");
     let temp_dir = if use_temp_dir {
         // symlink everything in the exe_dir into the temp_dir
         let dir = tempdir()?;
@@ -211,12 +207,18 @@ pub fn run_one(
             None => {
                 env::remove_var(MOVE_VM_TRACING_ENV_VAR_NAME);
             }
-            Some(path) => env::set_var(MOVE_VM_TRACING_ENV_VAR_NAME, path.as_os_str()),
+            Some(path) => env::set_var(MOVE_VM_TRACING_ENV_VAR_NAME,
+                                       path.as_os_str()),
         }
 
         let cmd_output = cli_command_template().args(args_iter).output()?;
 
-        output += &format!("Command `{}`:\n", args_line);
+        //TODO:
+        // output += &format!("Command `{}`:\n", args_line);
+        // let _ = write_fmt(output, "Command `{}`:\n", args_line);
+        output += &*"Command `{".to_string();
+        output += &*args_line;
+        output += "`:\n";
         output += std::str::from_utf8(&cmd_output.stdout)?;
         output += std::str::from_utf8(&cmd_output.stderr)?;
 
@@ -267,11 +269,11 @@ pub fn run_one(
         );
 
         // clean the trace file as well if it exists
-        // if let Some(trace_path) = &trace_file {
-        //     if trace_path.exists() {
-        //         // fs::remove_file(trace_path)?;
-        //     }
-        // }
+        if let Some(trace_path) = &trace_file {
+            if trace_path.exists() {
+                fs::remove_file(trace_path)?;
+            }
+        }
     }
 
     // release the temporary workspace explicitly
@@ -307,7 +309,7 @@ fn get_test(info: &CompiledModule, f_def: &FunctionDefinition) -> TestTemplate {
     let mut type_args = false;
     if !&func.type_parameters.is_empty() {
         println!("{:#?} takes type args", &func_name);
-        type_args = true;
+        type_args = true; //TODO:
     }
 
     // Obtain the function signature from the coverage map
@@ -321,20 +323,15 @@ fn get_test(info: &CompiledModule, f_def: &FunctionDefinition) -> TestTemplate {
     let addr_idx = info.module_handles[mod_idx].address.into_index();
     let mod_addr = info.address_identifiers[addr_idx];
 
-    let test = TestTemplate {
-        mod_addr,
-        mod_name: module,
-        func_name,
-        params: parameters.to_vec(),
-        type_args,
-    };
-    return test;
+    TestTemplate { mod_addr, mod_name: module, func_name, params: parameters.to_vec(),
+        type_args }
 }
 
 fn start_fuzz(
     exe_dir: &Path, cli_binary: &Path, use_temp_dir: bool, test_name: &str, resume: bool,
-    is_dpn: &bool, init_file: &str, init_func: &str,
-) -> Result<(Vec<TestTemplate>, Vec<String>, ExecCoverageMapWithModules, u64, Vec<TestTemplate>), anyhow::Error> {
+    is_dpn: &bool, init_file: Option<&str>, init_func: Option<&str>,
+) -> Result<(Vec<TestTemplate>, Vec<String>, ExecCoverageMapWithModules, u64, Vec<TestTemplate>),
+    anyhow::Error> {
     let cli_binary_path = cli_binary.canonicalize()?;
 
     let temp_dir = if use_temp_dir {
@@ -407,7 +404,8 @@ fn start_fuzz(
             let src_modules = pkg
                 .all_modules()
                 .map(|unit| {
-                    let absolute_path = path_to_string(&unit.source_path.canonicalize()?)?;
+                    let absolute_path =
+                        path_to_string(&unit.source_path.canonicalize()?)?;
                     Ok((absolute_path, module(&unit.unit)?.clone()))
                 })
                 .collect::<anyhow::Result<HashMap<_, _>>>()?;
@@ -420,17 +418,24 @@ fn start_fuzz(
                     for struct_def in &info.struct_defs {
                         // Get the name of the structure
                         let struct_handle_idx = struct_def.struct_handle.into_index();
-                        let struct_name_idx = info.struct_handles[struct_handle_idx].name.into_index();
-                        let struct_name = &info.identifiers[struct_name_idx].as_str().to_owned();
+                        let struct_name_idx =
+                            info.struct_handles[struct_handle_idx].name.into_index();
+                        let struct_name =
+                            &info.identifiers[struct_name_idx].as_str().to_owned();
 
                         // Get the name and address of the module that declares the structure
-                        let struct_mod_idx = info.struct_handles[struct_handle_idx].module.into_index();
-                        let mod_name_idx = info.module_handles[struct_mod_idx].name.into_index();
-                        let mod_addr_idx = info.module_handles[struct_mod_idx].address.into_index();
+                        let struct_mod_idx =
+                            info.struct_handles[struct_handle_idx].module.into_index();
+                        let mod_name_idx =
+                            info.module_handles[struct_mod_idx].name.into_index();
+                        let mod_addr_idx =
+                            info.module_handles[struct_mod_idx].address.into_index();
                         let mod_name = &info.identifiers[mod_name_idx].as_str().to_owned();
-                        let mod_addr = &info.address_identifiers[mod_addr_idx].to_hex_literal();
+                        let mod_addr =
+                            &info.address_identifiers[mod_addr_idx].to_hex_literal();
 
-                        let final_struct = mod_addr.to_owned() + "::" + mod_name + "::" + struct_name;
+                        let final_struct = mod_addr.to_owned() + "::" + mod_name + "::" +
+                            struct_name;
                         // For now, for simplicity, only structures that don't take type
                         // arguments are being used
                         if info.struct_handles[struct_handle_idx].type_parameters.is_empty() {
@@ -447,14 +452,15 @@ fn start_fuzz(
                         }
                     }
                 }
-                if *is_dpn && entry.ends_with(&init_file) {
+                if *is_dpn && entry.ends_with(&init_file.unwrap()) {
                     for f_def in &info.function_defs {
                         if f_def.is_entry {
                             // Obtain the function name from the coverage map
-                            let func = &info.function_handles[f_def.function.into_index()];
+                            let func =
+                                &info.function_handles[f_def.function.into_index()];
                             let name_idx = func.name.into_index();
                             let func_name: String = info.identifiers[name_idx].as_str().to_owned();
-                            if func_name == init_func {
+                            if func_name == init_func.unwrap() {
                                 init_test.push(get_test(&info, f_def));
                             }
                         }
@@ -468,8 +474,9 @@ fn start_fuzz(
     let mut cov_info = ExecCoverageMapWithModules::empty();
     let mut prev_count = 0;
     let tests_ran_folders = [
-        get_path(FuzzPath::ErrNewCov), get_path(FuzzPath::ErrNoNewCov),
-        get_path(FuzzPath::PassedNewCov), get_path(FuzzPath::PassedNoNewCov),
+        FuzzPath::ErrNewCov.get_path(), FuzzPath::ErrNoNewCov.get_path(),
+        FuzzPath::PassedNewCov.get_path(), FuzzPath::PassedNoNewCov.get_path(),
+        FuzzPath::NotTested.get_path()
     ];
 
     for path in tests_ran_folders {
@@ -503,27 +510,29 @@ fn start_fuzz(
 
     // If we are resuming the fuzzer, re-run the tests that gave new coverage (whether they passed
     // or gave an error), to obtain the coverage info again
-    // let new_cov_path: String = FUZZ_TEST_DIR.to_owned() + PASSED_DIR + NEW_COV_DIR;
-    // let err_new_cov_path: String = FUZZ_TEST_DIR.to_owned() + ERROR_DIR + NEW_COV_DIR;
+
     let dirs = vec![
-        get_path(FuzzPath::PassedNewCov),
-        get_path(FuzzPath::ErrNewCov),
+        FuzzPath::PassedNewCov.get_path(),
+        FuzzPath::ErrNewCov.get_path(),
     ];
     if resume {
         for p in dirs {
             if Path::new(&p).exists() {
-                for entry in fs::read_dir(p)? {
+                for entry in read_dir(p)? {
                     let file = entry.unwrap();
-                    let path = "./".to_owned() + &file.path().as_path().display().to_string();
+                    let path = "./".to_owned() +
+                        &file.path().as_path().display().to_string();
                     if !path.contains(".exp") {
                         println!("RE-RUNNING: {:#?}", path);
-                        match run_one(&PathBuf::from(&path), cli_binary, use_temp_dir) {
+                        match run_one(&PathBuf::from(&path), cli_binary, use_temp_dir)
+                        {
                             Ok(tuple) => {
                                 if let Some(cov) = tuple.0 {
                                     cov_info.merge(cov);
                                 }
                             }
-                            Err(ex) => eprintln!("Test {:#?} failed with error: {}", &path, ex),
+                            Err(ex) => eprintln!("Test {:#?} failed with error: {}",
+                                                 &path, ex),
                         }
                     }
                 }
@@ -534,13 +543,13 @@ fn start_fuzz(
     Ok((tests, type_arg_pool, cov_info, prev_count, init_test))
 }
 
+// Creates a signer by randomly 32 selecting valid hex digits
 pub fn get_signer() -> String {
     // One hex = 2^4 = 4 bits = 1/2 byte
     // Two hex = 2^8 = 8 bits = 1 byte
     let address_bits = vec![
         "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F",
     ];
-
     let range = rand::distributions::Uniform::from(1..16);
     let mut rng = rand::thread_rng();
     let mut signer: String = "0x".to_string();
@@ -624,11 +633,12 @@ fn fuzz_inputs(
                     added_new = true;
                 } else {
                     // Reuse an old signer
-                    let between = rand::distributions::Uniform::from(0..module_signers.len());
+                    let between =
+                        rand::distributions::Uniform::from(0..module_signers.len());
                     let idx = between.sample(&mut rng);
                     args.push(module_signers[idx].clone());
                 }
-                // TODO FUZZ THIS
+                // For now, just using hard-coded addresses
             } else if *p == Vector(Box::new(U8)) {
                 let generate_new = coinflip::flip();
                 if generate_new {
@@ -636,8 +646,6 @@ fn fuzz_inputs(
                 } else {
                     args.push("b\"DD\"".parse()?)
                 }
-                // hardcode empty, XDX, XUS,
-                // scrape the code for strings if enough time, like with grep
             }
         }
     }
@@ -647,7 +655,7 @@ fn fuzz_inputs(
 
     // TODO
     // Write a type-arg if the function takes type-args
-    if *is_dpn && f.type_args == true {
+    if *is_dpn && f.type_args {
         let between = rand::distributions::Uniform::from(0..type_arg_pool.len());
         let idx = between.sample(&mut rng);
         t += "--type-args ";
@@ -665,7 +673,8 @@ fn fuzz_inputs(
                 new_signers_and_addrs.push(new_signer.clone());
                 added_new = true;
             } else {
-                let between = rand::distributions::Uniform::from(0..module_signers.len());
+                let between =
+                    rand::distributions::Uniform::from(0..module_signers.len());
                 let idx = between.sample(&mut rng);
                 new_signer = module_signers[idx].clone()
             }
@@ -688,7 +697,7 @@ fn fuzz_inputs(
 fn move_tests(test_path: &String, folder_type: FuzzPath) -> Result<String, anyhow::Error> {
     let splits: Vec<&str> = test_path.split('/').collect();
     let file_name = splits.last().unwrap().to_string();
-    let test_name = get_path(folder_type.clone()) + &*file_name;
+    let test_name = folder_type.clone().get_path() + &*file_name;
 
     // Create a file in the error folder to copy the test to
     File::create(&test_name)?;
@@ -718,14 +727,14 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
     // Create a directory to store the output tests of our fuzzer
 
     let paths = [
-        get_path(FuzzPath::Fuzz),
-        get_path(FuzzPath::Passed),
-        get_path(FuzzPath::Err),
-        get_path(FuzzPath::PassedNoNewCov),
-        get_path(FuzzPath::PassedNewCov),
-        get_path(FuzzPath::ErrNewCov),
-        get_path(FuzzPath::ErrNoNewCov),
-        get_path(FuzzPath::NotTested)
+        FuzzPath::Fuzz.get_path(),
+        FuzzPath::Passed.get_path(),
+        FuzzPath::Err.get_path(),
+        FuzzPath::PassedNoNewCov.get_path(),
+        FuzzPath::PassedNewCov.get_path(),
+        FuzzPath::ErrNewCov.get_path(),
+        FuzzPath::ErrNoNewCov.get_path(),
+        FuzzPath::NotTested.get_path()
     ];
 
     for p in paths {
@@ -740,7 +749,7 @@ pub fn setup_fuzz_dirs() -> anyhow::Result<()> {
 pub fn fuzzer(
     args_path: &Path, cli_binary: &Path, use_temp_dir: bool,
     // This is the name of the file whose functions are to be tested
-    test_name: &str, is_dpn: &bool, init_file: &str, init_func: &str, resume: &bool,
+    test_name: &str, is_dpn: &bool, init_file: Option<&str>, init_func: Option<&str>, resume: &bool,
 ) -> anyhow::Result<()> {
     let mut test_total: u64 = 0;
     let mut test_passed: u64 = 0;
@@ -766,9 +775,11 @@ pub fn fuzzer(
         count = init_info.3 + 1;
         println!("COVERAGE RESUMED AT:");
         for (_, module_summary) in cov_info.clone().into_module_summaries() {
-            for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
+            for (fn_name, fn_summary) in
+            module_summary.function_summaries.iter() {
                 if !fn_summary.fn_is_native {
-                    println!("fun {} \t\t% coverage: {:.2}", fn_name, fn_summary.percent_coverage());
+                    println!("fun {} \t\t% coverage: {:.2}", fn_name,
+                             fn_summary.percent_coverage());
                 }
             }
         }
@@ -814,8 +825,10 @@ pub fn fuzzer(
 
                 // If the latest test ran before pausing gave an error, but wasn't removed from the
                 // queue yet, don't add it to the queue we are rebuilding
-                let test_new_cov = &(get_path(FuzzPath::ErrNewCov) + &seed.clone());
-                let test_no_new_cov = &(get_path(FuzzPath::ErrNoNewCov) + &seed.clone());
+                let test_new_cov =
+                    &(FuzzPath::ErrNewCov.get_path() + &seed.clone());
+                let test_no_new_cov =
+                    &(FuzzPath::ErrNoNewCov.get_path() + &seed.clone());
 
                 let is_error = Path::new(test_new_cov).is_file() ||
                     Path::new(test_no_new_cov).is_file();
@@ -843,8 +856,8 @@ pub fn fuzzer(
             fs::remove_file(&last_test)?;
             // decrement count
             count -= 1;
-        } else if !(Path::new(&(get_path(FuzzPath::ErrNewCov) + &last_test)).is_file()
-            || Path::new(&(get_path(FuzzPath::ErrNoNewCov) + &last_test)).is_file()
+        } else if !(Path::new(&(FuzzPath::ErrNewCov.get_path() + &last_test)).is_file()
+            || Path::new(&(FuzzPath::ErrNoNewCov.get_path() + &last_test)).is_file()
         ) {
             // decrement count
             count -= 1;
@@ -860,13 +873,7 @@ pub fn fuzzer(
         setup_fuzz_dirs().expect("Could not set-up test directories");
     }
 
-    // for str in &type_arg_pool {
-    //     println!("STRUCT IS {:#}", &str)
-    // }
-
-    // This will keep track of any signers used so far
-    // TODO: Don't have hardcoded ones
-    // let mut signers: Vec<String> = Vec::new();
+    // This will keep track of any signers used so far, starting with a few default signers
     let mut signers: Vec<String> = vec!["0xA550C18".to_string(), "0xB1E55ED".to_string(),
                                         "0xDD".to_string(), "0xA".to_string(), "0xb".to_string()];
 
@@ -874,24 +881,27 @@ pub fn fuzzer(
     if !*resume {
         for func in template.iter() {
             let new_test = format!("test{}", count);
-            let mut output = File::create(&new_test)?;
+            let mut output = File::create(FuzzPath::NotTested.get_path()
+                + &new_test)?;
 
-            // First line in each test should be "sandbox publish", with different flags depending on
-            // if it's run through the Move cli, or the Diem cli.
+            // First line in each test should be "sandbox publish", with different flags depending
+            // on if it's run through the Move cli, or the Diem cli.
             if *is_dpn {
                 writeln!(output, "sandbox publish --bundle --with-deps")
                     .expect("Failed to write to args file");
 
                 // For df-cli (targeting the DPN), write the set-up command to the test file
                 let init_func_info = &init_info.4[0];
-                fuzz_inputs(init_func_info, &output, &signers, is_dpn, &type_arg_pool).unwrap();
+                fuzz_inputs(init_func_info, &output, &signers, is_dpn,
+                            &type_arg_pool).unwrap();
             } else {
                 writeln!(output, "sandbox publish").expect("Failed to write to args file");
             }
 
             // This will write some tests into our testfile
             let mut fuzz_output =
-                fuzz_inputs(func, &output, &signers, is_dpn, &type_arg_pool).unwrap();
+                fuzz_inputs(func, &output, &signers, is_dpn, &type_arg_pool)
+                    .unwrap();
             // Add any new signers or addresses to our store
             if fuzz_output.0 {
                 signers.append(&mut fuzz_output.1)
@@ -919,13 +929,16 @@ pub fn fuzzer(
                 Some(i.1),
             );
 
-            for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
-                let mod_func = module_summary.module_name.name().as_str().to_string() + &fn_name.to_string();
+            for (fn_name, fn_summary) in
+            module_summary.function_summaries.iter() {
+                let mod_func = module_summary.module_name.name().as_str().to_string()
+                    + &fn_name.to_string();
 
                 match covered.entry(mod_func.clone()) {
                     std::collections::hash_map::Entry::Vacant(e) => {
                         if fn_summary.covered > 0 {
-                            // This means that the current test reached a function that wasn't covered before
+                            // This means that the current test reached a function that wasn't
+                            // covered before
                             e.insert(fn_summary.covered);
                         }
                     }
@@ -941,12 +954,12 @@ pub fn fuzzer(
 
         // Then, also add any tests already ran in the tests_ran hash set
         let tested_paths = [
-            &get_path(FuzzPath::PassedNoNewCov),
-            &get_path(FuzzPath::PassedNewCov)
+            &FuzzPath::PassedNoNewCov.get_path(),
+            &FuzzPath::PassedNewCov.get_path()
         ];
         for path in tested_paths {
             if Path::new(path).exists() {
-                for entry in fs::read_dir(&path)? {
+                for entry in read_dir(&path)? {
                     let file = entry?;
                     let file_path = file.path().into_os_string().into_string().unwrap();
                     let splits: Vec<&str> = file_path.split('/').collect();
@@ -964,18 +977,15 @@ pub fn fuzzer(
     }
     println!("TESTS RAN {:#?}", tests_ran);
 
-    let mut b = 0;
-    while b < 500
-    // && !pq.is_empty()
-    {
+    // For now, it will fuzz until no tests are left in the queue
+    // User must manually stop the program otherwise
+    while true {
         if pq.is_empty() {
-            if b > 500 {
-                break;
-            }
 
             for func in template.iter() {
                 let new_test = format!("test{}", count);
-                let mut output_file = File::create(&new_test)?;
+                let mut output_file =
+                    File::create(FuzzPath::NotTested.get_path() + &new_test)?;
 
                 // First line in each test should be "sandbox publish"
                 if *is_dpn {
@@ -983,14 +993,17 @@ pub fn fuzzer(
                         .expect("Failed to write to args file");
 
                     let init_func_info = &init_info.4[0];
-                    fuzz_inputs(init_func_info, &output_file, &signers, is_dpn, &type_arg_pool).unwrap();
+                    fuzz_inputs(init_func_info, &output_file, &signers,
+                                is_dpn, &type_arg_pool).unwrap();
                 } else {
-                    writeln!(output_file, "sandbox publish").expect("Failed to write to args file");
+                    writeln!(output_file, "sandbox publish").
+                        expect("Failed to write to args file");
                 }
 
                 // This will write some tests into our testfile
                 let mut output =
-                    fuzz_inputs(func, &output_file, &signers, is_dpn, &type_arg_pool).unwrap();
+                    fuzz_inputs(func, &output_file, &signers, is_dpn,
+                                &type_arg_pool).unwrap();
                 // Add any new signers or addresses to our store
                 if output.0 {
                     signers.append(&mut output.1)
@@ -1001,8 +1014,6 @@ pub fn fuzzer(
             }
         }
 
-
-        b += 1;
         let seed = pq.pop();
         let clone = seed.clone();
         match seed {
@@ -1017,15 +1028,18 @@ pub fn fuzzer(
 
                     // Copy the calls in the old test to the new test
                     // Old test could either be in the new-coverage folder, or the tested folder
-                    let mut path = get_path(FuzzPath::PassedNoNewCov) + &test_path.0;
-                    if !Path::new(&path).is_file() {
-                        path = get_path(FuzzPath::PassedNewCov) + &test_path.0;
+                    let mut old_test_path = FuzzPath::PassedNoNewCov.get_path() +
+                        &test_path.0;
+                    if !Path::new(&old_test_path).is_file() {
+                        old_test_path = FuzzPath::PassedNewCov.get_path() + &test_path.0;
                     }
-                    fs::copy(&path, &new_test)
+                    let new_test_path = FuzzPath::NotTested.get_path() + &new_test;
+
+                    fs::copy(&old_test_path, &new_test_path)
                         .expect("Could not create new test from old test");
 
                     let file = OpenOptions::new().write(true).append(true)
-                        .open(&new_test).unwrap();
+                        .open(&new_test_path).unwrap();
 
                     // Add a new function call to the new test
                     // a) Randomly select which function to add
@@ -1033,7 +1047,8 @@ pub fn fuzzer(
 
                     // b) Write a function call for the randomly selected function to the new test
                     let mut output =
-                        fuzz_inputs(&template[idx], &file, &signers, is_dpn, &type_arg_pool)
+                        fuzz_inputs(&template[idx], &file, &signers,
+                                    is_dpn, &type_arg_pool)
                             .unwrap();
                     // Add any new signers or addresses to our store
                     if output.0 {
@@ -1045,8 +1060,9 @@ pub fn fuzzer(
                     // Push the old test to the queue
                     pq.push(test_path.0.to_string(), test_path.1 - 1);
                 } else {
-                    match run_one(Path::new(&("./".to_owned() + &test_path.0)),
-                                  cli_binary, use_temp_dir) {
+                    match run_one(
+                        Path::new(&(FuzzPath::NotTested.get_path() + &test_path.0)),
+                        cli_binary, use_temp_dir) {
                         Ok(tuple) => {
                             tests_ran.insert(test_path.clone().0);
 
@@ -1080,18 +1096,25 @@ pub fn fuzzer(
                                             .as_str().to_string() + &fn_name.to_string();
 
                                         match covered.entry(mod_func.clone()) {
-                                            std::collections::hash_map::Entry::Vacant(e) => {
+                                            std::collections::hash_map::Entry::
+                                            Vacant(e) => {
                                                 if fn_summary.covered > 0 {
-                                                    // This means that the current test reached a function that wasn't covered before
-                                                    println!("{:#?} had an error, but reached this function for the first time: {:#?}", &test_path.0, &mod_func);
+                                                    // This means that the current test reached a
+                                                    // function that wasn't covered before
+                                                    println!("{:#?} had an error, but reached this \
+                                                    function for the first time: {:#?}",
+                                                             &test_path.0, &mod_func);
                                                     e.insert(fn_summary.covered);
                                                     new_cov = true;
                                                 }
                                             }
-                                            std::collections::hash_map::Entry::Occupied(mut e) => {
+                                            std::collections::hash_map::Entry::
+                                            Occupied(mut e) => {
                                                 // Check if we have more coverage for the function
                                                 if fn_summary.covered > *e.get() {
-                                                    println!("{:#?} had an error, but gave new coverage in function: {:#?}", &test_path.0, &mod_func);
+                                                    println!("{:#?} had an error, but gave new \
+                                                    coverage in function: {:#?}",
+                                                             &test_path.0, &mod_func);
                                                     *e.get_mut() = fn_summary.covered;
                                                     new_cov = true;
                                                 }
@@ -1100,13 +1123,17 @@ pub fn fuzzer(
                                     }
                                 }
 
+                                let old_test_path = FuzzPath::NotTested.get_path() +
+                                    &test_path.0;
                                 if new_cov {
                                     //move this test to the new-coverage error folder
-                                    move_tests(&test_path.0, FuzzPath::ErrNewCov).
+                                    move_tests(&old_test_path,
+                                               FuzzPath::ErrNewCov).
                                         expect("Failed to move test to the error folder");
                                 } else {
                                     //move this test to the no new-coverage error folder
-                                    move_tests(&test_path.0, FuzzPath::ErrNoNewCov).
+                                    move_tests(&old_test_path,
+                                               FuzzPath::ErrNoNewCov).
                                         expect("Failed to move test to the error folder");
                                 }
                             } else {
@@ -1114,27 +1141,33 @@ pub fn fuzzer(
                                 // Let's check if this test generated any new coverage
                                 println!("{:#?} passed", &test_path.0);
 
-                                let compiled_modules = &cov_info.compiled_modules;
+                                let compiled_modules =
+                                    &cov_info.compiled_modules;
                                 let mut new_cov: bool = false;
 
                                 for i in &cov_info.module_maps {
-                                    let module_summary = summarize_inst_cov_by_module(
-                                        compiled_modules.get(&i.0.0).unwrap(),
-                                        Some(i.1),
-                                    );
+                                    let module_summary =
+                                        summarize_inst_cov_by_module
+                                            (compiled_modules.get(&i.0.0).unwrap(),
+                                             Some(i.1));
 
-                                    for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
-                                        let mod_func = module_summary.module_name.name().as_str().to_string() + &fn_name.to_string();
+                                    for (fn_name, fn_summary) in
+                                    module_summary.function_summaries.iter() {
+                                        let mod_func = module_summary.module_name.name().
+                                            as_str().to_string() + &fn_name.to_string();
 
                                         match covered.entry(mod_func.clone()) {
-                                            std::collections::hash_map::Entry::Vacant(e) => {
+                                            std::collections::hash_map::Entry::
+                                            Vacant(e) => {
                                                 if fn_summary.covered > 0 {
-                                                    // This means that the current test reached a function that wasn't covered before
+                                                    // This means that the current test reached a
+                                                    // function that wasn't covered before
                                                     e.insert(fn_summary.covered);
                                                     new_cov = true;
                                                 }
                                             }
-                                            std::collections::hash_map::Entry::Occupied(mut e) => {
+                                            std::collections::hash_map::Entry::
+                                            Occupied(mut e) => {
                                                 // Check if we have more coverage for the function
                                                 if fn_summary.covered > *e.get() {
                                                     *e.get_mut() = fn_summary.covered;
@@ -1145,29 +1178,42 @@ pub fn fuzzer(
                                     }
                                 }
 
-                                // Push the old (seed) test back to the queue, with the correct adjusted priority
+                                // Push the old (seed) test back to the queue, with the correctly
+                                // adjusted priority
                                 match clone {
                                     Some(test) => {
+                                        let old_test_path =
+                                            FuzzPath::NotTested.get_path() + &test_path.0;
                                         if new_cov {
                                             println!("{:#?} gave new coverage", test.0);
                                             println!("{:#?} mutated into test {}", test.0, count);
 
-                                            //Because the test generated new coverage, mutate it and add a new version to our queue
+                                            //Because the test generated new coverage, mutate it
+                                            // and add a new version to our queue
                                             let new_test = format!("test{}", count);
                                             count += 1;
 
                                             // Copy the calls in the old test to the new test
-                                            fs::copy(&test_path.0, &new_test).expect("Could not create new test from old test");
+                                            let new_test_path =
+                                                FuzzPath::NotTested.get_path() + &new_test;
 
-                                            let file = OpenOptions::new().write(true).append(true).open(&new_test).unwrap();
+                                            fs::copy(&old_test_path, &new_test_path).
+                                                expect("Could not create new test from \
+                                                old test");
+
+                                            let file = OpenOptions::new().write(true).
+                                                append(true).open(&new_test_path).unwrap();
 
                                             // Add a new function call to the new test
                                             // a) Randomly select which function to add
                                             let idx = between.sample(&mut rng);
 
-                                            // b) Write a function call for the randomly selected function to the new test
+                                            // b) Write a function call for the randomly selected
+                                            // function to the new test
                                             let mut output =
-                                                fuzz_inputs(&template[idx], &file, &signers, is_dpn, &type_arg_pool).unwrap();
+                                                fuzz_inputs(&template[idx], &file,
+                                                            &signers, is_dpn,
+                                                            &type_arg_pool).unwrap();
                                             // Add any new signers or addresses to our store
                                             if output.0 {
                                                 signers.append(&mut output.1)
@@ -1176,13 +1222,17 @@ pub fn fuzzer(
                                             pq.push(new_test, test_path.1 + 1);
                                             pq.push(test.0.to_string(), test.1);
                                             // Move the test to the tested directory
-                                            move_tests(&test_path.0, FuzzPath::PassedNewCov).
-                                                expect("Failed to move test to the tested folder");
+                                            move_tests(&old_test_path,
+                                                       FuzzPath::PassedNewCov).
+                                                expect("Failed to move test to the new-\
+                                                coverage tested folder");
                                         } else {
                                             pq.push(test.0.to_string(), test.1 - 5);
                                             // Move the test to the tested directory
-                                            move_tests(&test_path.0, FuzzPath::PassedNoNewCov).
-                                                expect("Failed to move test to the tested folder");
+                                            move_tests(&old_test_path,
+                                                       FuzzPath::PassedNoNewCov).
+                                                expect("Failed to move test to the no new-\
+                                                coverage tested folder");
                                         }
                                     }
                                     None => {}
@@ -1190,18 +1240,22 @@ pub fn fuzzer(
                             }
                             println!("{} test(s) ran.", test_passed);
                         }
-                        Err(ex) => eprintln!("Test {:#?} failed with error: {}", &test_path.0, ex),
+                        Err(ex) => eprintln!("Test {:#?} failed with error: {}",
+                                             &test_path.0, ex),
                     }
                     // If module coverage is 100%, break
                     let mut all_covered = true;
-                    for (_, module_summary) in cov_info.clone().into_module_summaries() {
-                        for (fn_name, fn_summary) in module_summary.function_summaries.iter() {
+                    for (_, module_summary) in
+                    cov_info.clone().into_module_summaries() {
+                        for (fn_name, fn_summary) in
+                        module_summary.function_summaries.iter() {
                             if !fn_summary.fn_is_native {
                                 let cov_per: f64 = fn_summary.percent_coverage();
                                 if cov_per != 100_f64 {
                                     all_covered = false
                                 }
-                                println!("fun {} \t\t% coverage: {:.2}", fn_name, fn_summary.percent_coverage());
+                                println!("fun {} \t\t% coverage: {:.2}", fn_name,
+                                         fn_summary.percent_coverage());
                             }
                         }
                     }
@@ -1212,34 +1266,26 @@ pub fn fuzzer(
             None => println!("No test found."),
         }
 
-        // Backup our queue, in case of resume
+        // Backup our queue, in case of pause and resume
         let mut new_qf = QueueFile::open(TEMP_QUEUE)
             .expect("cannot open queue file");
+
+        // For each test (seed) in the priority queue, write both the test name,
+        // followed by its priority to the queue-file
         for i in pq.iter() {
             new_qf.add(i.0.as_bytes()).expect("add failed");
             new_qf.add(i.1.to_string().as_bytes()).expect("add failed");
         }
+
+        // We can now delete the outdated backup queue
         if Path::new(BACKUP_QUEUE).exists() {
             fs::remove_file(BACKUP_QUEUE)?;
         }
+
+        // Rename the temp queue to the proper name to indicate that it contains a complete
+        // version of the priority queue
         fs::rename(TEMP_QUEUE, BACKUP_QUEUE).expect("Failed to rename temp queue");
     }
-
-    // Begin cleanup by moving the created tests into their respective folders
-    // for i in &pq {
-    //     let exp_name = i.0.clone().to_owned() + ".exp";
-    //     // If this test was ran, it would have an .exp with its name
-    //     let tested = Path::new(&exp_name).exists();
-    //     // Move the tests that didn't give an error either to the tested or not-tested directories
-    //     // if tested {
-    //     //     move_tests(i.0, "RAN".to_string()).
-    //     //         expect("Failed to move test to the tested folder");
-    //     // } else {
-    //     if !tested {
-    //         move_tests(i.0, "NOT_RAN".to_string()).
-    //             expect("Failed to move test to the not-tested folder");
-    //     }
-    // }
 
     // if any test fails, bail
     let test_failed = test_total.checked_sub(test_passed).unwrap();
@@ -1247,7 +1293,7 @@ pub fn fuzzer(
         anyhow::bail!("{} / {} test(s) failed.", test_failed, test_total)
     }
 
-    // show coverage information if requested
+    // show coverage information
     let mut summary_writer: Box<dyn Write> = Box::new(io::stdout());
     for (_, module_summary) in cov_info.into_module_summaries() {
         module_summary.summarize_human(&mut summary_writer, true)?;
@@ -1256,8 +1302,4 @@ pub fn fuzzer(
     Ok(())
 }
 
-//TODO: FILTER STRUCTURES AND LEAVE NOTE
-
-// TODO: TEST CREATED BUT NOT ADDED TO QUEUE --> SKIPPED
-// TODO: TEST GIVES ERROR BUT NOT REMOVED FROM QUEUE --> if ran it will give error again and then be removed
 

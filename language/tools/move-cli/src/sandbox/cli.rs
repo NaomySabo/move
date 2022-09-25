@@ -153,12 +153,12 @@ pub enum SandboxCommand {
         // Flag to indicate if a DPN module is being targeted
         #[clap(long = "is-dpn")]
         is_dpn: bool,
-        #[clap(name = "init-file", parse(try_from_str))]
+        #[clap(long = "init-file", parse(try_from_str))]
         // File containing the function to initialize the blockchain (if is-dpn is set to true)
-        init_file: String,
-        #[clap(name = "init-func", parse(try_from_str))]
+        init_file: Option<String>,
+        #[clap(long = "init-func", parse(try_from_str))]
         // The function to initialize the blockchain (if is-dpn is set to true)
-        init_func: String,
+        init_func: Option<String>,
         #[clap(long = "resume", short = 'r')]
         resume: bool
     }
@@ -317,8 +317,8 @@ impl SandboxCommand {
                 *use_temp_dir,
                 &module,
                 is_dpn,
-                &init_file,
-                &init_func,
+                init_file.as_deref(),
+                init_func.as_deref(),
                 resume
             ),
         }

@@ -34,6 +34,7 @@ coinflip = "0.1.1"
 rand = "0.8.5"
 queue-file = "1"
 regex = "1"
+log = "0.4.17"
 move-bytecode-verifier = { path = "../../move-bytecode-verifier" }
 move-disassembler = { path = "../move-disassembler" }
 move-command-line-common = { path = "../../move-command-line-common" }

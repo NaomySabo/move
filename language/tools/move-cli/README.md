@@ -574,3 +574,58 @@ This handy command runs exhaustive sanity checks on global storage to detect any
 * All modules link against their dependencies
 * All resources deserialize according to their declared types
 * All events deserialize according to their declared types
+
+### The Fuzz command
+
+The `move sandbox fuzz <module.move>` command generates a series of tests to fuzz any public entry functions in the 
+specified file. The tests will be stored in a directory just outside the `sources` directory containing the move module
+being fuzzed, as shown below. 
+
+
+```
+readme/
+└── fuzz-tests
+    └── not-tested
+    └── tested-error
+        └── new-coverage
+        └── no-new-coverage
+    └── tested-passed
+        └── new-coverage
+        └── no-new-coverage
+└── sources
+    ├── Test.move
+```
+
+A good first target to familiarize oneself with the functionality of the `fuzz` command is the `readme` example in the 
+tutorial. Running the fuzzer on this example would be done through `move sandbox fuzz Test.move`.
+
+The fuzzing process will continue until 100% line coverage is reached in the target module, and can be stopped manually
+at any time (control + c). As long as no generated files are deleted, the fuzzing process can be resumed anytime by 
+running `move sandbox fuzz <module.move> -r`.
+
+The above steps work for testing any simple move module. To fuzz any modules in the diem payment system (such as those 
+in language/documentation/examples/diem-framework/move-packages/DPN), the fuzz command will need to be run through the 
+df-cli, with the `--is-dpn` flag specified. Two additional arguments need to be supplied as well, an init_file and 
+init_function respectively, as shown below:
+
+`df-cli sandbox fuzz --is-dpn <dpn_module.move> --init-file <init.move> --init-func <function.name> `
+
+For example:
+`df-cli sandbox fuzz --is-dpn AccountCreationScripts.move --init-file Genesis.move --init-func setup`
+
+The init_func must be a function that initializes the blockchain, and the init_file is the 
+path to the file containing the init_func. An example of an init_func is the `setup` function contained inside of 
+`Genesis.move`. Once again, modules containing public entry functions within the DPN folder are appropriate targets for
+fuzzing. Currently, they are:
+
+```
+AccountAdministrationScripts.move
+AccountCreationScripts.move
+PaymentScripts.move
+SystemAdministrationScripts.move
+TreasuryComplianceScripts.move
+ValidatorAdministrationScripts.move
+```
+
+If a fuzz-tests folder already has been created for a module, it must be deleted before running the fuzz command on that
+module again. 

@@ -1,4 +1,4 @@
-/// The `Genesis` module defines the Move initialization entry point of the Diem framework
+ /// The `Genesis` module defines the Move initialization entry point of the Diem framework
 /// when executing from a fresh state.
 ///
 /// > TODO: Currently there are a few additional functions called from Rust during genesis.

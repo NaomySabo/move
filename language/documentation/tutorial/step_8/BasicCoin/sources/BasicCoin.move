@@ -50,7 +50,7 @@ module NamedAddr::BasicCoin {
     }
 
     spec transfer{
-        let addr_from = Signer::address_of(from);
+        let addr_from = signer::address_of(from);
 
         let balance_from = global<Balance<CoinType>>(addr_from).coin.value;
         let balance_to = global<Balance<CoinType>>(to).coin.value;
@@ -61,7 +61,7 @@ module NamedAddr::BasicCoin {
         ensures balance_to_post == balance_to + amount;
     }
 
-    public fun withdraw<CoinType>(addr: address, amount: u64) : Coin<CoinType> acquires Balance {
+    fun withdraw<CoinType>(addr: address, amount: u64) : Coin<CoinType> acquires Balance {
         let balance = balance_of<CoinType>(addr);
         assert!(balance >= amount, EINSUFFICIENT_BALANCE);
         let balance_ref = &mut borrow_global_mut<Balance<CoinType>>(addr).coin.value;
@@ -80,7 +80,7 @@ module NamedAddr::BasicCoin {
         ensures balance_post == balance - amount;
     }
 
-    public fun deposit<CoinType>(addr: address, check: Coin<CoinType>) acquires Balance{
+    fun deposit<CoinType>(addr: address, check: Coin<CoinType>) acquires Balance{
         let balance = balance_of<CoinType>(addr);
         let balance_ref = &mut borrow_global_mut<Balance<CoinType>>(addr).coin.value;
         let Coin { value } = check;
