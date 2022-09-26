@@ -64,7 +64,8 @@ const NEW_COV_DIR: &str = "new-coverage/";
 const NO_NEW_COV_DIR: &str = "no-new-coverage/";
 
 #[derive(PartialEq, Clone)]
-enum FuzzPath {Fuzz, Passed, Err, PassedNoNewCov, PassedNewCov, ErrNoNewCov, ErrNewCov, NotTested}
+enum FuzzPath { Fuzz, Passed, Err, PassedNoNewCov, PassedNewCov, ErrNoNewCov, ErrNewCov, NotTested }
+
 impl FuzzPath {
     fn get_path(&self) -> String {
         match self {
@@ -86,7 +87,7 @@ struct TestTemplate {
     mod_name: String,
     func_name: String,
     params: Vec<SignatureToken>,
-    type_args: bool, // TODO: MAKE THIS AN INT
+    type_args: i32,
 }
 
 fn collect_coverage(
@@ -143,8 +144,6 @@ pub fn run_one(
     let cli_binary_path = cli_binary.canonicalize()?;
 
     // path where we will run the binary
-    // let mut exe_dir = args_path.parent().unwrap();
-    // TODO: MAKE THIS PROPER
     let exe_dir = Path::new(".");
     let temp_dir = if use_temp_dir {
         // symlink everything in the exe_dir into the temp_dir
@@ -212,10 +211,6 @@ pub fn run_one(
         }
 
         let cmd_output = cli_command_template().args(args_iter).output()?;
-
-        //TODO:
-        // output += &format!("Command `{}`:\n", args_line);
-        // let _ = write_fmt(output, "Command `{}`:\n", args_line);
         output += &*"Command `{".to_string();
         output += &*args_line;
         output += "`:\n";
@@ -223,7 +218,7 @@ pub fn run_one(
         output += std::str::from_utf8(&cmd_output.stderr)?;
 
         // Check to see if any of the commands ran generated any errors
-        // TODO
+        // Checking stdout for any signs of errors
         if std::str::from_utf8(&cmd_output.stdout)?.contains(&"error") ||
             std::str::from_utf8(&cmd_output.stdout)?.contains(&"aborted") ||
             std::str::from_utf8(&cmd_output.stdout)?.contains(&"failed") ||
@@ -306,11 +301,7 @@ fn get_test(info: &CompiledModule, f_def: &FunctionDefinition) -> TestTemplate {
     let func = &info.function_handles[f_def.function.into_index()];
     let name_idx = func.name.into_index();
     let func_name: String = info.identifiers[name_idx].as_str().to_owned();
-    let mut type_args = false;
-    if !&func.type_parameters.is_empty() {
-        println!("{:#?} takes type args", &func_name);
-        type_args = true; //TODO:
-    }
+    let type_args = func.type_parameters.len() as i32;
 
     // Obtain the function signature from the coverage map
     let param_idx = func.parameters.into_index();
@@ -323,8 +314,13 @@ fn get_test(info: &CompiledModule, f_def: &FunctionDefinition) -> TestTemplate {
     let addr_idx = info.module_handles[mod_idx].address.into_index();
     let mod_addr = info.address_identifiers[addr_idx];
 
-    TestTemplate { mod_addr, mod_name: module, func_name, params: parameters.to_vec(),
-        type_args }
+    TestTemplate {
+        mod_addr,
+        mod_name: module,
+        func_name,
+        params: parameters.to_vec(),
+        type_args,
+    }
 }
 
 fn start_fuzz(
@@ -391,7 +387,7 @@ fn start_fuzz(
 
             let canonical_build = &build_output.canonicalize().unwrap();
             let package_name = parse_move_manifest_from_file(
-                &SourcePackageLayout::try_find_root(&canonical_build).unwrap(),
+                &SourcePackageLayout::try_find_root(canonical_build).unwrap(),
             )?.package.name.to_string();
 
             let pkg = OnDiskCompiledPackage::from_path(
@@ -411,8 +407,6 @@ fn start_fuzz(
                 .collect::<anyhow::Result<HashMap<_, _>>>()?;
 
             for (entry, info) in &src_modules {
-                // TODO: concat /
-
                 // Create a pool of structures to pass as type_args when fuzzing
                 if !entry.contains("dependencies") {
                     for struct_def in &info.struct_defs {
@@ -448,7 +442,7 @@ fn start_fuzz(
                     // Import the modules to be fuzzed in the test script
                     for f_def in &info.function_defs {
                         if f_def.is_entry {
-                            tests.push(get_test(&info, f_def))
+                            tests.push(get_test(info, f_def))
                         }
                     }
                 }
@@ -461,7 +455,7 @@ fn start_fuzz(
                             let name_idx = func.name.into_index();
                             let func_name: String = info.identifiers[name_idx].as_str().to_owned();
                             if func_name == init_func.unwrap() {
-                                init_test.push(get_test(&info, f_def));
+                                init_test.push(get_test(info, f_def));
                             }
                         }
                     }
@@ -623,8 +617,8 @@ fn fuzz_inputs(
             } else if *p == Address || p == &Address {
                 // All the addresses we use are from our existing pool of signers
                 let generate_new = false;
-                // TODO
-                // = coinflip::flip();
+                // To randomly decide to generate new or reuse old, replace "false" above with:
+                // coinflip::flip();
                 if generate_new || module_signers.is_empty() {
                     // Generate a new signer (address)
                     let new_signer = get_signer();
@@ -653,14 +647,17 @@ fn fuzz_inputs(
     t += &f.func_name;
     t += " ";
 
-    // TODO
     // Write a type-arg if the function takes type-args
-    if *is_dpn && f.type_args {
-        let between = rand::distributions::Uniform::from(0..type_arg_pool.len());
-        let idx = between.sample(&mut rng);
+    if *is_dpn && f.type_args > 0 {
         t += "--type-args ";
-        t += &type_arg_pool[idx];
-        t += " ";
+        let between = rand::distributions::Uniform::from(0..type_arg_pool.len());
+        let mut i = 0;
+        while i < f.type_args {
+            let idx = between.sample(&mut rng);
+            t += &type_arg_pool[idx];
+            t += " ";
+            i += 1;
+        }
     }
 
     if signer_count > 0 {
@@ -668,7 +665,8 @@ fn fuzz_inputs(
         for _n in 0..signer_count {
             let mut new_signer = get_signer();
             let generate_new = false;
-            // TODO: coinflip::flip();
+            // To randomly decide to generate new or reuse old, replace "false" above with:
+            // coinflip::flip();
             if generate_new || module_signers.is_empty() {
                 new_signers_and_addrs.push(new_signer.clone());
                 added_new = true;
@@ -697,7 +695,7 @@ fn fuzz_inputs(
 fn move_tests(test_path: &String, folder_type: FuzzPath) -> Result<String, anyhow::Error> {
     let splits: Vec<&str> = test_path.split('/').collect();
     let file_name = splits.last().unwrap().to_string();
-    let test_name = folder_type.clone().get_path() + &*file_name;
+    let test_name = folder_type.get_path() + &*file_name;
 
     // Create a file in the error folder to copy the test to
     File::create(&test_name)?;
@@ -836,23 +834,19 @@ pub fn fuzzer(
                 if !is_error {
                     pq.push(seed.clone(), priority);
                 } else {
-                    println!("NOT ADDING {:#?}", &seed);
                     if test_name.contains(&("test".to_owned() + &count.to_string())) {
                         count += 1;
                     }
                 }
             }
         }
-        println!("RESTORED PRIORITY QUEUE IS: {:#?}", pq);
     }
 
 
     // If a test was created and ran (because it's trace exists), but not added to our queue,
     // push it back to our queue with the top priority, so it can be rerun
     if *resume && !last_test_found {
-        println!("we may need to remove {:#?}", last_test);
         if Path::new(&last_test).is_file() {
-            println!("removed {:#?}", last_test);
             fs::remove_file(&last_test)?;
             // decrement count
             count -= 1;
@@ -867,7 +861,6 @@ pub fn fuzzer(
     if latest_test >= count && *resume {
         count = latest_test + 1
     }
-    println!("count is {:#?}", count);
 
     if !*resume {
         setup_fuzz_dirs().expect("Could not set-up test directories");
@@ -975,13 +968,11 @@ pub fn fuzzer(
             }
         }
     }
-    println!("TESTS RAN {:#?}", tests_ran);
 
     // For now, it will fuzz until no tests are left in the queue
     // User must manually stop the program otherwise
-    while true {
+    loop {
         if pq.is_empty() {
-
             for func in template.iter() {
                 let new_test = format!("test{}", count);
                 let mut output_file =

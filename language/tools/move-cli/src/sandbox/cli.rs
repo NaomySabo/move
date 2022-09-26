@@ -315,7 +315,7 @@ impl SandboxCommand {
                     .unwrap_or_else(|| Path::new(".")),
                 &std::env::current_exe()?,
                 *use_temp_dir,
-                &module,
+                module,
                 is_dpn,
                 init_file.as_deref(),
                 init_func.as_deref(),
